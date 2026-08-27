@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import router from '@/router'
 import type {
   User, Course, LearningPath, Lesson, Exercise,
   UserStats, RunResult, JudgeResult, SubmitResult,
@@ -23,6 +24,11 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       const auth = useAuthStore()
       auth.logout()
+      // 避免在登录/注册页重复跳转
+      const currentRoute = router.currentRoute.value
+      if (currentRoute.name !== 'login' && currentRoute.name !== 'register') {
+        router.push({ name: 'login' })
+      }
     }
     return Promise.reject(err)
   }
