@@ -231,10 +231,10 @@ func (h *ExerciseHandler) ExamSubmit(c *gin.Context) {
 			correct, _, _ := h.courseSvc.SubmitAnswer(userID, item.ExerciseID, item.Answer)
 			result.Correct = correct
 		} else {
-			// 主观题/其他类型调用 AI 判定
+			// 主观题/其他类型调用 AI 判定（只传题目和学生作答，不传参考答案）
 			log.Printf("[ExamSubmit] AI 判定: exerciseID=%d type=%s", item.ExerciseID, ex.Type)
 			correct, feedback, err := h.generator.JudgeSubjective(
-				c.Request.Context(), ex.Question, ex.Answer, item.Answer, ex.Explanation,
+				c.Request.Context(), ex.Question, item.Answer,
 			)
 			if err != nil {
 				log.Printf("[ExamSubmit] AI 判定失败: %v", err)

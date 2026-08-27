@@ -217,9 +217,10 @@ func (g *ExerciseGenerator) GenerateHint(ctx context.Context, question, userAnsw
 	return resp.Content, nil
 }
 
-// JudgeSubjective 使用 LLM 判定主观题答案是否正确
+// JudgeSubjective 使用 LLM 独立判定主观题答案是否正确
+// 只把题目和学生作答交给 AI，不提供参考答案，由 AI 自行判断
 // 返回: correct(bool), feedback(string), error
-func (g *ExerciseGenerator) JudgeSubjective(ctx context.Context, question, referenceAnswer, studentAnswer, criteria string) (bool, string, error) {
+func (g *ExerciseGenerator) JudgeSubjective(ctx context.Context, question, studentAnswer string) (bool, string, error) {
 	log.Printf("[AI判定] 开始: question=%s studentAnswer=%s", truncate(question, 50), truncate(studentAnswer, 50))
 
 	if g.cfg.LLMAPIKey == "" {
@@ -239,20 +240,23 @@ func (g *ExerciseGenerator) JudgeSubjective(ctx context.Context, question, refer
 	}
 
 	messages := []*schema.Message{
-		{Role: schema.System, Content: `你是一名编程教育阅卷老师。你需要判定学生的主观题答案是否正确。
+		{Role: schema.System, Content: `你是一名编程教育阅卷老师。你需要独立判定学生的主观题/简答题答案是否正确。
 
 判定规则：
-1. 不要求完全一致，只要核心概念正确即可
-2. 学生答案只要包含参考答案中的关键要点，即为正确
-3. 返回严格的 JSON 格式，不要包含 markdown 标记`},
+1. 你只收到题目和学生的作答，不提供参考答案
+2. 根据你的专业知识判断学生答案的核心概念是否正确
+3. 不要求措辞一致，只要理解和逻辑正确即可判对
+4. 如果学生答案有明显概念错误或遗漏关键点，判错
+5. 如果学生答案完全答非所问或空白，判错
+6. 返回严格的 JSON 格式，不要包含 markdown 标记`},
 		{Role: schema.User, Content: fmt.Sprintf(`题目：%s
-参考答案：%s
-评分标准：%s
-学生的答案：%s
 
-请判定学生答案是否正确，返回 JSON：
-{"correct": true/false, "feedback": "简要说明判定理由，不超过两句话"}`,
-			question, referenceAnswer, criteria, studentAnswer)},
+学生的作答：%s
+
+请根据你的专业知识判断学生作答是否正确。
+返回 JSON：
+{"correct": true/false, "feedback": "简要说明判定理由，不超过三句话"}`,
+			question, studentAnswer)},
 	}
 
 	log.Printf("[AI判定] 调用 LLM Generate...")
