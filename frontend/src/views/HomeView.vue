@@ -62,6 +62,30 @@ onMounted(async () => {
         <span>在线代码运行</span>
       </div>
     </div>
+
+    <div class="ai-tools">
+      <h2 class="section-title">AI 学习工具</h2>
+      <div class="tool-grid">
+        <div class="tool-card adaptive" @click="router.push('/adaptive')">
+          <span class="tool-icon">📊</span>
+          <h3>自适应学习路径</h3>
+          <p>AI 分析错题，识别薄弱知识点，生成针对性练习</p>
+          <span class="tool-badge">Eino Chain</span>
+        </div>
+        <div class="tool-card tutor" @click="router.push('/tutor')">
+          <span class="tool-icon">🤖</span>
+          <h3>AI 编程导师</h3>
+          <p>贴入代码，AI 运行、诊断、修复 bug，支持多轮对话</p>
+          <span class="tool-badge">Eino Agent</span>
+        </div>
+        <div class="tool-card knowledge" @click="router.push('/knowledge')">
+          <span class="tool-icon">📚</span>
+          <h3>知识点问答</h3>
+          <p>基于课程内容的 RAG 检索增强问答，个性化解释</p>
+          <span class="tool-badge">Eino RAG</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -127,4 +151,17 @@ onMounted(async () => {
 .feature span:last-child { font-size: 12px; color: var(--text-light); }
 
 .loading { text-align: center; padding: 40px; color: var(--text-light); }
+
+.ai-tools { margin-top: 40px; }
+.section-title { font-size: 20px; font-weight: 800; margin-bottom: 16px; text-align: center; }
+.tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.tool-card { background: white; border: 2px solid var(--border); border-radius: var(--radius); padding: 24px 16px; cursor: pointer; text-align: center; transition: all 0.2s; position: relative; }
+.tool-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+.tool-card.adaptive { border-color: #8b5cf6; }
+.tool-card.tutor { border-color: #3b82f6; }
+.tool-card.knowledge { border-color: #10b981; }
+.tool-icon { font-size: 40px; display: block; margin-bottom: 8px; }
+.tool-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+.tool-card p { font-size: 13px; color: var(--text-light); line-height: 1.5; }
+.tool-badge { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; background: var(--bg-gray); color: var(--text-light); }
 </style>

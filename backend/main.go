@@ -41,6 +41,11 @@ func main() {
 	wrongSvc := service.NewWrongExerciseService(repo)
 	generator := eino.NewExerciseGenerator(cfg)
 
+	// Eino 组件初始化
+	adaptiveAdvisor := eino.NewAdaptiveAdvisor(cfg)
+	tutorAgent := eino.NewTutorAgent(cfg)
+	knowledgeRAG := eino.NewKnowledgeRAG(cfg, repo)
+
 	// 初始化处理器
 	authHandler := handler.NewAuthHandler(repo, cfg.JWTSecret, cfg.MaxHearts)
 	courseHandler := handler.NewCourseHandler(courseSvc)
@@ -48,9 +53,12 @@ func main() {
 	codeHandler := handler.NewCodeHandler(courseSvc, progressSvc)
 	progressHandler := handler.NewProgressHandler(progressSvc)
 	wrongHandler := handler.NewWrongExerciseHandler(wrongSvc)
+	adaptiveHandler := handler.NewAdaptiveHandler(adaptiveAdvisor, repo)
+	tutorHandler := handler.NewTutorHandler(tutorAgent)
+	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeRAG)
 
 	// 初始化路由
-	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler)
+	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler)
 
 	// 种子数据
 	if err := seedData(repo); err != nil {

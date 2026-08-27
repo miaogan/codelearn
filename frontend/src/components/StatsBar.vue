@@ -25,6 +25,15 @@ onMounted(loadWrongCount)
     <div class="stats-content">
       <router-link to="/" class="logo">📚 CodeLearn</router-link>
       <div class="stats-items">
+        <div class="stat-item ai-tutor" title="AI 编程导师" @click="router.push('/tutor')">
+          <span class="icon">🤖</span>
+        </div>
+        <div class="stat-item knowledge" title="知识点问答" @click="router.push('/knowledge')">
+          <span class="icon">💡</span>
+        </div>
+        <div class="stat-item adaptive" title="自适应学习" @click="router.push('/adaptive')">
+          <span class="icon">📊</span>
+        </div>
         <div class="stat-item streak" title="连续打卡">
           <span class="icon">🔥</span>
           <span class="value">{{ auth.stats.streak_days }}</span>
@@ -91,8 +100,9 @@ onMounted(loadWrongCount)
   color: var(--text);
 }
 
-.stat-item.xp {
+.stat-item.ai-tutor, .stat-item.knowledge, .stat-item.adaptive {
   cursor: pointer;
+  font-size: 20px;
 }
 
 .stat-item.xp .icon {

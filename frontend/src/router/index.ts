@@ -50,6 +50,24 @@ const router = createRouter({
       component: () => import('@/views/WrongExercisesView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/adaptive',
+      name: 'adaptive',
+      component: () => import('@/views/AdaptiveView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/tutor',
+      name: 'tutor',
+      component: () => import('@/views/TutorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/knowledge',
+      name: 'knowledge',
+      component: () => import('@/views/KnowledgeView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

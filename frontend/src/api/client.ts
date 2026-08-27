@@ -85,4 +85,27 @@ export const wrongApi = {
   count: () => api.get<{ count: number }>('/wrong-exercises/count'),
 }
 
+export const adaptiveApi = {
+  recommend: (courseId?: number, language?: string) =>
+    api.get('/adaptive/recommend', {
+      params: { course_id: courseId, language },
+    }),
+}
+
+export const tutorApi = {
+  debug: (data: { language: string; code: string; question: string }) =>
+    api.post('/tutor/debug', data),
+  chat: (data: { messages: { role: string; content: string }[]; code: string; language: string }) =>
+    api.post<{ reply: string }>('/tutor/chat', data),
+  review: (data: { code: string; language: string }) =>
+    api.post<{ review: string }>('/tutor/review', data),
+  run: (data: { language: string; code: string; input?: string }) =>
+    api.post<RunResult>('/tutor/run', data),
+}
+
+export const knowledgeApi = {
+  ask: (data: { question: string; language: string }) =>
+    api.post('/knowledge/ask', data),
+}
+
 export default api

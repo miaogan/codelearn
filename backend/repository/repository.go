@@ -224,3 +224,35 @@ func (r *Repository) ListExercisesByIDs(ids []uint) ([]model.Exercise, error) {
 	err := r.db.Where("id IN ?", ids).Find(&exercises).Error
 	return exercises, err
 }
+
+// LessonSearchResult 课程内容检索结果
+type LessonSearchResult struct {
+	ID         uint   `json:"id"`
+	UnitID     uint   `json:"unit_id"`
+	Title      string `json:"title"`
+	Content    string `json:"content"`
+	CourseID   uint   `json:"course_id"`
+	CourseName string `json:"course_name"`
+}
+
+// SearchLessonsByKeyword 按关键词检索课程内容（RAG Retriever）
+func (r *Repository) SearchLessonsByKeyword(keyword string, limit int) []LessonSearchResult {
+	if keyword == "" {
+		return []LessonSearchResult{}
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+
+	var results []LessonSearchResult
+	// JOIN lessons + units + courses，按标题和内容模糊搜索
+	r.db.Table("lessons").
+		Select("lessons.id, lessons.unit_id, lessons.title, lessons.content, units.course_id, courses.title as course_name").
+		Joins("JOIN units ON units.id = lessons.unit_id").
+		Joins("JOIN courses ON courses.id = units.course_id").
+		Where("lessons.title LIKE ? OR lessons.content LIKE ?", "%"+keyword+"%", "%"+keyword+"%").
+		Limit(limit).
+		Scan(&results)
+
+	return results
+}

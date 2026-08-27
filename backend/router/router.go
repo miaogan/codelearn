@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler) *gin.Engine {
+func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -52,6 +52,18 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 			authed.GET("/wrong-exercises", wrong.List)
 			authed.POST("/wrong-exercises/:id/master", wrong.MarkMastered)
 			authed.GET("/wrong-exercises/count", wrong.Count)
+
+			// Eino Chain 模式：自适应学习路径
+			authed.GET("/adaptive/recommend", adaptive.Recommend)
+
+			// Eino Agent 模式：AI 编程导师
+			authed.POST("/tutor/debug", tutor.Debug)
+			authed.POST("/tutor/chat", tutor.Chat)
+			authed.POST("/tutor/review", tutor.Review)
+			authed.POST("/tutor/run", tutor.Run)
+
+			// Eino RAG 模式：知识点问答
+			authed.POST("/knowledge/ask", knowledge.Ask)
 		}
 	}
 
