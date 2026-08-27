@@ -224,9 +224,15 @@ func (h *ExerciseHandler) ExamSubmit(c *gin.Context) {
 			Explanation:  ex.Explanation,
 		}
 
-		if ex.Type == "subjective" {
-			// 主观题调用 AI 判定
-			log.Printf("[ExamSubmit] 主观题 AI 判定: exerciseID=%d", item.ExerciseID)
+		// 非标准客观题类型（subjective, short_answer, essay 等）都用 AI 判定
+		isObjective := ex.Type == "choice" || ex.Type == "fillblank" || ex.Type == "order"
+		if isObjective {
+			// 客观题直接比对
+			correct, _, _ := h.courseSvc.SubmitAnswer(userID, item.ExerciseID, item.Answer)
+			result.Correct = correct
+		} else {
+			// 主观题/其他类型调用 AI 判定
+			log.Printf("[ExamSubmit] AI 判定: exerciseID=%d type=%s", item.ExerciseID, ex.Type)
 			correct, feedback, err := h.generator.JudgeSubjective(
 				c.Request.Context(), ex.Question, ex.Answer, item.Answer, ex.Explanation,
 			)
@@ -238,10 +244,6 @@ func (h *ExerciseHandler) ExamSubmit(c *gin.Context) {
 				result.Correct = correct
 				result.Feedback = feedback
 			}
-		} else {
-			// 客观题直接比对
-			correct, _, _ := h.courseSvc.SubmitAnswer(userID, item.ExerciseID, item.Answer)
-			result.Correct = correct
 		}
 
 		if result.Correct {

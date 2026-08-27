@@ -211,8 +211,8 @@ function getResultItem(exerciseId: number) {
           <input :value="getAnswer(currentExercise.id)" @input="selectAnswer(currentExercise.id, ($event.target as HTMLInputElement).value)" placeholder="输入答案..." />
         </div>
 
-        <!-- 主观题 -->
-        <div v-else-if="currentExercise.type === 'subjective'" class="subjective">
+        <!-- 主观题 / 简答题 / 其他类型 -->
+        <div v-else class="subjective">
           <textarea :value="getAnswer(currentExercise.id)" @input="selectAnswer(currentExercise.id, ($event.target as HTMLTextAreaElement).value)" placeholder="请输入你的答案，AI 将判定是否正确..." rows="6"></textarea>
         </div>
       </div>
