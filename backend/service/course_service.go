@@ -142,6 +142,11 @@ func (s *CourseService) SubmitAnswer(userID, exerciseID uint, userAnswer string)
 	}
 	_ = s.repo.CreateSubmission(submission)
 
+	// 答错时记录到错题本
+	if !correct {
+		_ = s.repo.UpsertWrongExercise(userID, exerciseID, userAnswer)
+	}
+
 	return correct, ex.Explanation, nil
 }
 

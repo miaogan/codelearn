@@ -29,7 +29,7 @@ func main() {
 	if err := db.AutoMigrate(
 		&model.User{}, &model.Course{}, &model.Unit{},
 		&model.Lesson{}, &model.Exercise{}, &model.UserProgress{},
-		&model.Submission{},
+		&model.Submission{}, &model.WrongExercise{},
 	); err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 	}
@@ -38,6 +38,7 @@ func main() {
 	repo := repository.New(db)
 	courseSvc := service.NewCourseService(repo)
 	progressSvc := service.NewProgressService(repo, cfg.XPPerLesson, cfg.XPPerExercise, cfg.MaxHearts)
+	wrongSvc := service.NewWrongExerciseService(repo)
 	generator := eino.NewExerciseGenerator(cfg)
 
 	// 初始化处理器
@@ -46,9 +47,10 @@ func main() {
 	exerciseHandler := handler.NewExerciseHandler(courseSvc, progressSvc, generator)
 	codeHandler := handler.NewCodeHandler(courseSvc, progressSvc)
 	progressHandler := handler.NewProgressHandler(progressSvc)
+	wrongHandler := handler.NewWrongExerciseHandler(wrongSvc)
 
 	// 初始化路由
-	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler)
+	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler)
 
 	// 种子数据
 	if err := seedData(repo); err != nil {

@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 import type {
   User, Course, LearningPath, Lesson, Exercise,
-  UserStats, RunResult, JudgeResult, SubmitResult,
+  UserStats, RunResult, JudgeResult, SubmitResult, WrongExerciseItem,
 } from '@/types'
 
 const api = axios.create({
@@ -71,6 +71,16 @@ export const codeApi = {
 export const userApi = {
   stats: () => api.get<UserStats>('/users/me/stats'),
   progress: () => api.get<{ progress: any[] }>('/users/me/progress'),
+}
+
+export const wrongApi = {
+  list: (unmastered = false) =>
+    api.get<{ wrong_exercises: WrongExerciseItem[]; total: number }>('/wrong-exercises', {
+      params: unmastered ? { unmastered: 1 } : {},
+    }),
+  master: (exerciseId: number) =>
+    api.post<{ message: string }>(`/wrong-exercises/${exerciseId}/master`),
+  count: () => api.get<{ count: number }>('/wrong-exercises/count'),
 }
 
 export default api

@@ -162,3 +162,65 @@ func (r *Repository) CountTodaySubmissions(userID uint) (int64, error) {
 	err := r.db.Model(&model.Submission{}).Where("user_id = ? AND created_at >= ?", userID, start).Count(&count).Error
 	return count, err
 }
+
+// WrongExercise 错题本
+
+func (r *Repository) UpsertWrongExercise(userID, exerciseID uint, userAnswer string) error {
+	var existing model.WrongExercise
+	result := r.db.Where("user_id = ? AND exercise_id = ?", userID, exerciseID).First(&existing)
+	if result.Error != nil {
+		// 不存在，新建
+		return r.db.Create(&model.WrongExercise{
+			UserID:     userID,
+			ExerciseID: exerciseID,
+			UserAnswer: userAnswer,
+			WrongCount: 1,
+			LastWrongAt: time.Now(),
+		}).Error
+	}
+	// 已存在，增加错误次数，重置掌握状态
+	existing.WrongCount++
+	existing.Mastered = false
+	existing.UserAnswer = userAnswer
+	existing.LastWrongAt = time.Now()
+	existing.ReviewedAt = nil
+	return r.db.Save(&existing).Error
+}
+
+func (r *Repository) ListWrongExercises(userID uint, onlyUnmastered bool) ([]model.WrongExercise, error) {
+	var list []model.WrongExercise
+	q := r.db.Where("user_id = ?", userID)
+	if onlyUnmastered {
+		q = q.Where("mastered = ?", false)
+	}
+	err := q.Order("last_wrong_at DESC").Find(&list).Error
+	return list, err
+}
+
+func (r *Repository) GetWrongExercise(userID, exerciseID uint) (*model.WrongExercise, error) {
+	var w model.WrongExercise
+	err := r.db.Where("user_id = ? AND exercise_id = ?", userID, exerciseID).First(&w).Error
+	return &w, err
+}
+
+func (r *Repository) MarkWrongExerciseMastered(userID, exerciseID uint) error {
+	now := time.Now()
+	return r.db.Model(&model.WrongExercise{}).
+		Where("user_id = ? AND exercise_id = ?", userID, exerciseID).
+		Updates(map[string]interface{}{"mastered": true, "reviewed_at": &now}).Error
+}
+
+func (r *Repository) CountWrongExercises(userID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.WrongExercise{}).Where("user_id = ? AND mastered = ?", userID, false).Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) ListExercisesByIDs(ids []uint) ([]model.Exercise, error) {
+	var exercises []model.Exercise
+	if len(ids) == 0 {
+		return exercises, nil
+	}
+	err := r.db.Where("id IN ?", ids).Find(&exercises).Error
+	return exercises, err
+}

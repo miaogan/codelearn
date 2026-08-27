@@ -86,3 +86,17 @@ type Submission struct {
 	Correct    bool      `json:"correct"`
 	CreatedAt  time.Time `json:"created_at"`
 }
+
+// WrongExercise 错题本：记录用户答错的习题，支持回顾和已掌握标记
+type WrongExercise struct {
+	ID           uint       `gorm:"primaryKey" json:"id"`
+	UserID       uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"user_id"`
+	ExerciseID   uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"exercise_id"`
+	UserAnswer   string     `gorm:"type:text" json:"user_answer"`
+	WrongCount   int        `gorm:"default:1" json:"wrong_count"`
+	Mastered     bool       `gorm:"default:false" json:"mastered"`
+	LastWrongAt time.Time  `json:"last_wrong_at"`
+	ReviewedAt  *time.Time `json:"reviewed_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}

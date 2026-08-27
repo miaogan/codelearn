@@ -38,6 +38,12 @@ const router = createRouter({
       component: () => import('@/views/ProfileView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/wrong-exercises',
+      name: 'wrong-exercises',
+      component: () => import('@/views/WrongExercisesView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

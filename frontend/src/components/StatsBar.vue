@@ -1,9 +1,23 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { wrongApi } from '@/api/client'
 
 const auth = useAuthStore()
 const router = useRouter()
+const wrongCount = ref(0)
+
+async function loadWrongCount() {
+  try {
+    const res = await wrongApi.count()
+    wrongCount.value = res.data.count
+  } catch {
+    // ignore
+  }
+}
+
+onMounted(loadWrongCount)
 </script>
 
 <template>
@@ -22,6 +36,10 @@ const router = useRouter()
         <div class="stat-item hearts" title="心数">
           <span class="icon">❤️</span>
           <span class="value">{{ auth.stats.hearts }}/{{ auth.stats.max_hearts }}</span>
+        </div>
+        <div class="stat-item wrong" title="错题本" @click="router.push('/wrong-exercises')">
+          <span class="icon">📝</span>
+          <span class="value" :class="{ 'has-wrong': wrongCount > 0 }">{{ wrongCount }}</span>
         </div>
       </div>
     </div>
@@ -79,5 +97,19 @@ const router = useRouter()
 
 .stat-item.xp .icon {
   filter: hue-rotate(60deg);
+}
+
+.stat-item.wrong {
+  cursor: pointer;
+}
+
+.stat-item.wrong .value.has-wrong {
+  color: #ef4444;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 </style>

@@ -102,3 +102,20 @@ export interface SubmitResult {
   explanation: string
   hearts: number
 }
+
+export interface WrongExerciseItem {
+  id: number
+  exercise_id: number
+  type: 'choice' | 'fillblank' | 'code' | 'order'
+  question: string
+  options: string
+  difficulty: string
+  code_template: string
+  user_answer: string
+  correct_answer: string
+  explanation: string
+  wrong_count: number
+  mastered: boolean
+  last_wrong_at: string
+  reviewed_at?: string
+}

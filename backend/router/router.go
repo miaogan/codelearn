@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler) *gin.Engine {
+func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -47,6 +47,10 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 
 			authed.GET("/users/me/stats", progress.Stats)
 			authed.GET("/users/me/progress", progress.ListProgress)
+
+			authed.GET("/wrong-exercises", wrong.List)
+			authed.POST("/wrong-exercises/:id/master", wrong.MarkMastered)
+			authed.GET("/wrong-exercises/count", wrong.Count)
 		}
 	}
 
