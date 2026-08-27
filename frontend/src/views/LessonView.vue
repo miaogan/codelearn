@@ -21,7 +21,6 @@ const userAnswer = ref('')
 const checkResult = ref<SubmitResult | null>(null)
 const checked = ref(false)
 const codePassed = ref(false)
-const aiGenLoading = ref(false)
 
 const currentExercise = computed(() => exercises.value[currentIdx.value])
 const progress = computed(() => {
@@ -97,26 +96,6 @@ async function completeLesson() {
   }
 }
 
-async function generateAIExercises() {
-  if (!lesson.value) return
-  aiGenLoading.value = true
-  try {
-    const language = lesson.value.title.includes('Go') ? 'go' : 'python'
-    const res = await exerciseApi.generate(Number(route.params.id), {
-      language,
-      topic: lesson.value.title,
-      count: 3,
-      type: 'choice',
-      difficulty: 'easy',
-    })
-    exercises.value = [...exercises.value, ...res.data.exercises]
-  } catch (e: any) {
-    alert(e.response?.data?.error || 'AI 生成失败，请检查 LLM 配置')
-  } finally {
-    aiGenLoading.value = false
-  }
-}
-
 function back() {
   if (lesson.value) {
     router.push(`/course/${getCid()}`)
@@ -145,9 +124,6 @@ function getCid(): number {
       </div>
       <button class="btn-primary start-btn" @click="startExercises" :disabled="exercises.length === 0">
         {{ exercises.length > 0 ? '开始练习' : '暂无习题' }}
-      </button>
-      <button class="btn-secondary ai-btn" @click="generateAIExercises" :disabled="aiGenLoading">
-        {{ aiGenLoading ? 'AI 生成中...' : '🤖 AI 生成练习题' }}
       </button>
     </div>
 
@@ -237,7 +213,6 @@ function getCid(): number {
 }
 
 .start-btn { width: 100%; }
-.ai-btn { width: 100%; }
 
 .progress-bar-wrap {
   display: flex;

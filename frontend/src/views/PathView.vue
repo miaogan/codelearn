@@ -71,6 +71,17 @@ function offsetClass(index: number) {
       </div>
     </div>
 
+    <div class="action-bar">
+      <button class="btn-exam" @click="router.push(`/course/${route.params.id}/exam`)">
+        <span class="btn-icon">🤖</span>
+        <span>AI 模拟考试</span>
+      </button>
+      <button class="btn-wrong" @click="router.push('/wrong-exercises')">
+        <span class="btn-icon">📝</span>
+        <span>错题本</span>
+      </button>
+    </div>
+
     <button class="btn-ghost back-btn" @click="router.push('/')">← 返回课程列表</button>
   </div>
 
@@ -186,5 +197,47 @@ function offsetClass(index: number) {
 }
 
 .back-btn { margin-top: 32px; width: 100%; }
+
+.action-bar {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-exam, .btn-wrong {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-exam {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  box-shadow: 0 4px 0 #4f46e5;
+}
+
+.btn-exam:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #4f46e5; }
+.btn-exam:active { transform: translateY(2px); box-shadow: 0 2px 0 #4f46e5; }
+
+.btn-wrong {
+  background: white;
+  color: var(--text);
+  border: 2px solid var(--border);
+  box-shadow: 0 4px 0 #e5e5e5;
+}
+
+.btn-wrong:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #e5e5e5; }
+.btn-wrong:active { transform: translateY(2px); box-shadow: 0 2px 0 #e5e5e5; }
+
+.btn-icon { font-size: 20px; }
 .loading { text-align: center; padding: 40px; color: var(--text-light); }
 </style>
