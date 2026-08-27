@@ -1,0 +1,70 @@
+import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
+import type {
+  User, Course, LearningPath, Lesson, Exercise,
+  UserStats, RunResult, JudgeResult, SubmitResult,
+} from '@/types'
+
+const api = axios.create({
+  baseURL: '/api',
+})
+
+api.interceptors.request.use((config) => {
+  const auth = useAuthStore()
+  if (auth.token) {
+    config.headers.Authorization = `Bearer ${auth.token}`
+  }
+  return config
+})
+
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      const auth = useAuthStore()
+      auth.logout()
+    }
+    return Promise.reject(err)
+  }
+)
+
+export const authApi = {
+  register: (data: { username: string; email: string; password: string }) =>
+    api.post<{ token: string; user: User }>('/auth/register', data),
+  login: (data: { account: string; password: string }) =>
+    api.post<{ token: string; user: User }>('/auth/login', data),
+}
+
+export const courseApi = {
+  list: () => api.get<{ courses: Course[] }>('/courses'),
+  path: (id: number) => api.get<LearningPath>(`/courses/${id}`),
+  lesson: (id: number) => api.get<{ lesson: Lesson }>(`/lessons/${id}`),
+  exercises: (id: number) => api.get<{ exercises: Exercise[] }>(`/lessons/${id}/exercises`),
+}
+
+export const exerciseApi = {
+  submit: (id: number, answer: string) =>
+    api.post<SubmitResult>(`/exercises/${id}/submit`, { answer }),
+  generate: (lessonId: number, data: { language: string; topic: string; count?: number; type?: string; difficulty?: string }) =>
+    api.post<{ exercises: Exercise[] }>(`/lessons/${lessonId}/generate`, data),
+  hint: (data: { question: string; user_answer: string; language: string }) =>
+    api.post<{ hint: string }>('/exercises/hint', data),
+  template: (id: number) =>
+    api.get<{ code_template: string; type: string; question: string; difficulty: string }>(`/exercises/${id}/template`),
+}
+
+export const codeApi = {
+  run: (language: string, code: string) =>
+    api.post<RunResult>('/code/run', { language, code }),
+  judge: (exerciseId: number, language: string, code: string) =>
+    api.post<JudgeResult>('/code/judge', { exercise_id: exerciseId, language, code }),
+  complete: (lessonId: number) =>
+    api.post<{ xp_earned: number; hearts: number; message: string }>(`/lessons/${lessonId}/complete`),
+}
+
+export const userApi = {
+  stats: () => api.get<UserStats>('/users/me/stats'),
+  progress: () => api.get<{ progress: any[] }>('/users/me/progress'),
+}
+
+export default api
