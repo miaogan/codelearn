@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 import type {
   User, Course, LearningPath, Lesson, Exercise,
-  UserStats, RunResult, JudgeResult, SubmitResult, WrongExerciseItem,
+  UserStats, RunResult, JudgeResult, SubmitResult, WrongExerciseItem, ExamResult,
 } from '@/types'
 
 const api = axios.create({
@@ -57,6 +57,8 @@ export const exerciseApi = {
     api.post<{ hint: string }>('/exercises/hint', data),
   template: (id: number) =>
     api.get<{ code_template: string; type: string; question: string; difficulty: string }>(`/exercises/${id}/template`),
+  examSubmit: (answers: { exercise_id: number; answer: string }[]) =>
+    api.post<ExamResult>('/exercises/exam-submit', { answers }),
 }
 
 export const codeApi = {

@@ -176,4 +176,93 @@ func (h *ExerciseHandler) GetTestCase(c *gin.Context) {
 	})
 }
 
+// ExamSubmit 考试模式批量提交：不扣心数，统一打分
+type examAnswerItem struct {
+	ExerciseID uint   `json:"exercise_id"`
+	Answer     string `json:"answer"`
+}
+
+type examSubmitReq struct {
+	Answers []examAnswerItem `json:"answers" binding:"required"`
+}
+
+type examResultItem struct {
+	ExerciseID  uint   `json:"exercise_id"`
+	Correct     bool   `json:"correct"`
+	UserAnswer  string `json:"user_answer"`
+	CorrectAnswer string `json:"correct_answer"`
+	Explanation string `json:"explanation"`
+	Feedback    string `json:"feedback,omitempty"`
+}
+
+func (h *ExerciseHandler) ExamSubmit(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	var req examSubmitReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[ExamSubmit] 参数解析失败: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数无效"})
+		return
+	}
+
+	log.Printf("[ExamSubmit] userID=%d 提交 %d 道题", userID, len(req.Answers))
+
+	results := make([]examResultItem, 0, len(req.Answers))
+	correctCount := 0
+
+	for _, item := range req.Answers {
+		ex, err := h.courseSvc.GetExercise(item.ExerciseID)
+		if err != nil {
+			log.Printf("[ExamSubmit] 习题不存在: %d", item.ExerciseID)
+			continue
+		}
+
+		result := examResultItem{
+			ExerciseID:   item.ExerciseID,
+			UserAnswer:   item.Answer,
+			CorrectAnswer: ex.Answer,
+			Explanation:  ex.Explanation,
+		}
+
+		if ex.Type == "subjective" {
+			// 主观题调用 AI 判定
+			log.Printf("[ExamSubmit] 主观题 AI 判定: exerciseID=%d", item.ExerciseID)
+			correct, feedback, err := h.generator.JudgeSubjective(
+				c.Request.Context(), ex.Question, ex.Answer, item.Answer, ex.Explanation,
+			)
+			if err != nil {
+				log.Printf("[ExamSubmit] AI 判定失败: %v", err)
+				result.Correct = false
+				result.Feedback = "AI 判定失败: " + err.Error()
+			} else {
+				result.Correct = correct
+				result.Feedback = feedback
+			}
+		} else {
+			// 客观题直接比对
+			correct, _, _ := h.courseSvc.SubmitAnswer(userID, item.ExerciseID, item.Answer)
+			result.Correct = correct
+		}
+
+		if result.Correct {
+			correctCount++
+		}
+		results = append(results, result)
+	}
+
+	log.Printf("[ExamSubmit] 完成: %d/%d 正确", correctCount, len(results))
+
+	score := 0
+	if len(results) > 0 {
+		score = correctCount * 100 / len(results)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"results":       results,
+		"correct_count": correctCount,
+		"total_count":   len(results),
+		"score":         score,
+	})
+}
+
 

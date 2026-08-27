@@ -57,6 +57,7 @@ func (g *ExerciseGenerator) buildSystemPrompt(req GenRequest) string {
 习题类型说明：
 - choice: 选择题，必须包含 4 个选项（options 数组），answer 是正确选项的完整文本
 - fillblank: 填空题，answer 是正确答案文本
+- subjective: 主观题/简答题，answer 是参考答案要点（用于 AI 判定学生答案），explanation 包含评分标准
 - code: 代码编写题，必须包含 code_template（带函数签名或占位符）和 test_cases（测试用例数组，每个含 input 和 expected）
 - order: 代码排序题，options 是打乱顺序的代码行，answer 是正确顺序（用换行连接的正确代码）
 
@@ -75,6 +76,13 @@ func (g *ExerciseGenerator) buildSystemPrompt(req GenRequest) string {
     "answer": "const",
     "explanation": "Go 使用 const 关键字声明常量。",
     "difficulty": "easy"
+  },
+  {
+    "type": "subjective",
+    "question": "请简述 Go 语言中 goroutine 和 channel 的关系。",
+    "answer": "goroutine 是轻量级线程，channel 是 goroutine 间通信的管道。通过 channel 可以实现 goroutine 间的数据传递和同步，避免共享内存带来的并发问题。",
+    "explanation": "评分标准：1.提到goroutine是轻量级线程 2.提到channel用于通信 3.提到避免共享内存问题。满足2点以上为正确。",
+    "difficulty": "medium"
   }
 ]`, req.Language, req.Topic, req.Count, req.Difficulty, req.Language, req.Difficulty)
 }
@@ -207,6 +215,67 @@ func (g *ExerciseGenerator) GenerateHint(ctx context.Context, question, userAnsw
 
 	log.Printf("[AI提示] 成功, 提示长度=%d", len(resp.Content))
 	return resp.Content, nil
+}
+
+// JudgeSubjective 使用 LLM 判定主观题答案是否正确
+// 返回: correct(bool), feedback(string), error
+func (g *ExerciseGenerator) JudgeSubjective(ctx context.Context, question, referenceAnswer, studentAnswer, criteria string) (bool, string, error) {
+	log.Printf("[AI判定] 开始: question=%s studentAnswer=%s", truncate(question, 50), truncate(studentAnswer, 50))
+
+	if g.cfg.LLMAPIKey == "" {
+		log.Printf("[AI判定] 错误: LLM_API_KEY 未设置")
+		return false, "LLM_API_KEY 未设置", fmt.Errorf("LLM_API_KEY 未设置")
+	}
+
+	log.Printf("[AI判定] 创建 ChatModel...")
+	chatModel, err := openaillm.NewChatModel(ctx, &openaillm.ChatModelConfig{
+		APIKey:  g.cfg.LLMAPIKey,
+		BaseURL: g.cfg.LLMBaseURL,
+		Model:   g.cfg.LLMModel,
+	})
+	if err != nil {
+		log.Printf("[AI判定] 创建 ChatModel 失败: %v", err)
+		return false, "", fmt.Errorf("创建 ChatModel 失败: %w", err)
+	}
+
+	messages := []*schema.Message{
+		{Role: schema.System, Content: `你是一名编程教育阅卷老师。你需要判定学生的主观题答案是否正确。
+
+判定规则：
+1. 不要求完全一致，只要核心概念正确即可
+2. 学生答案只要包含参考答案中的关键要点，即为正确
+3. 返回严格的 JSON 格式，不要包含 markdown 标记`},
+		{Role: schema.User, Content: fmt.Sprintf(`题目：%s
+参考答案：%s
+评分标准：%s
+学生的答案：%s
+
+请判定学生答案是否正确，返回 JSON：
+{"correct": true/false, "feedback": "简要说明判定理由，不超过两句话"}`,
+			question, referenceAnswer, criteria, studentAnswer)},
+	}
+
+	log.Printf("[AI判定] 调用 LLM Generate...")
+	resp, err := chatModel.Generate(ctx, messages)
+	if err != nil {
+		log.Printf("[AI判定] LLM 调用失败: %v", err)
+		return false, "", fmt.Errorf("AI 判定失败: %w", err)
+	}
+
+	content := cleanJSON(resp.Content)
+	log.Printf("[AI判定] LLM 返回: %s", truncate(content, 200))
+
+	var result struct {
+		Correct  bool   `json:"correct"`
+		Feedback string `json:"feedback"`
+	}
+	if err := json.Unmarshal([]byte(content), &result); err != nil {
+		log.Printf("[AI判定] JSON解析失败: %v, 原始: %s", err, truncate(content, 200))
+		return false, "", fmt.Errorf("解析 AI 判定结果失败: %w", err)
+	}
+
+	log.Printf("[AI判定] 完成: correct=%v feedback=%s", result.Correct, truncate(result.Feedback, 50))
+	return result.Correct, result.Feedback, nil
 }
 
 func cleanJSON(s string) string {

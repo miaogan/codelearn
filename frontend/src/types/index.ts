@@ -53,7 +53,7 @@ export interface Lesson {
 export interface Exercise {
   id: number
   lesson_id: number
-  type: 'choice' | 'fillblank' | 'code' | 'order'
+  type: 'choice' | 'fillblank' | 'code' | 'order' | 'subjective'
   question: string
   options: string
   answer: string
@@ -63,6 +63,22 @@ export interface Exercise {
   test_cases: string
   order: number
   is_ai_gen: boolean
+}
+
+export interface ExamResultItem {
+  exercise_id: number
+  correct: boolean
+  user_answer: string
+  correct_answer: string
+  explanation: string
+  feedback?: string
+}
+
+export interface ExamResult {
+  results: ExamResultItem[]
+  correct_count: number
+  total_count: number
+  score: number
 }
 
 export interface UserStats {

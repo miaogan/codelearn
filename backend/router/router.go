@@ -37,6 +37,7 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 			authed.GET("/lessons/:id/exercises", course.GetExercises)
 
 			authed.POST("/exercises/:id/submit", exercise.Submit)
+			authed.POST("/exercises/exam-submit", exercise.ExamSubmit)
 			authed.POST("/lessons/:id/generate", exercise.Generate)
 			authed.POST("/exercises/hint", exercise.Hint)
 			authed.GET("/exercises/:id/template", exercise.GetTestCase)
