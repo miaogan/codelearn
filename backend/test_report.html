@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeLearn 测试报告</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.6; }
+        .container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+        h1 { font-size: 2em; color: #58a6ff; margin-bottom: 8px; }
+        .subtitle { color: #8b949e; font-size: 1em; margin-bottom: 30px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px; }
+        .stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; text-align: center; }
+        .stat-card .num { font-size: 2em; font-weight: 700; }
+        .stat-card .label { color: #8b949e; font-size: 0.85em; margin-top: 4px; }
+        .pass-color { color: #3fb950; }
+        .fail-color { color: #f85149; }
+        .total-color { color: #58a6ff; }
+        .rate-color { color: #d29922; }
+        .section { margin-bottom: 30px; }
+        .section-title { font-size: 1.3em; color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 8px; margin-bottom: 16px; }
+        .test-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .test-table th { background: #161b22; color: #8b949e; text-align: left; padding: 10px 12px; border-bottom: 2px solid #30363d; font-weight: 600; text-transform: uppercase; font-size: 0.8em; }
+        .test-table td { padding: 8px 12px; border-bottom: 1px solid #21262d; }
+        .badge-pass { background: #1a3a1a; color: #3fb950; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+        .badge-fail { background: #3a1a1a; color: #f85149; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+        .module-row { background: #161b22; }
+        .module-row td { font-weight: 600; color: #58a6ff; }
+        .subtest { padding-left: 28px; color: #8b949e; }
+        .duration { color: #8b949e; font-family: "SF Mono", "Consolas", monospace; }
+        .tech-stack { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
+        .tech-stack h3 { color: #58a6ff; margin-bottom: 12px; }
+        .tech-stack ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+        .tech-stack li { background: #21262d; border: 1px solid #30363d; padding: 4px 12px; border-radius: 16px; font-size: 0.85em; }
+        .coverage-bar { height: 24px; background: #21262d; border-radius: 12px; overflow: hidden; margin: 8px 0; }
+        .coverage-fill { height: 100%; background: linear-gradient(90deg, #3fb950, #58a6ff); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: 600; color: #fff; }
+        .footer { text-align: center; color: #484f58; font-size: 0.85em; margin-top: 40px; padding-top: 20px; border-top: 1px solid #21262d; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>CodeLearn 测试报告</h1>
+    <p class="subtitle">Go + Gin + Eino 编程学习平台 | 生成时间：2026-08-27</p>
+
+    <div class="summary-grid">
+        <div class="stat-card">
+            <div class="num total-color">46</div>
+            <div class="label">测试总数</div>
+        </div>
+        <div class="stat-card">
+            <div class="num pass-color">46</div>
+            <div class="label">通过</div>
+        </div>
+        <div class="stat-card">
+            <div class="num fail-color">0</div>
+            <div class="label">失败</div>
+        </div>
+        <div class="stat-card">
+            <div class="num rate-color">100%</div>
+            <div class="label">通过率</div>
+        </div>
+    </div>
+
+    <div class="tech-stack">
+        <h3>测试技术栈</h3>
+        <ul>
+            <li>Go testing</li>
+            <li>Gin HTTP Test</li>
+            <li>SQLite 内存数据库</li>
+            <li>GORM AutoMigrate</li>
+            <li>httptest.NewRecorder</li>
+            <li>表驱动测试</li>
+            <li>子测试 t.Run()</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">模块覆盖</h2>
+        <table class="test-table">
+            <thead>
+                <tr>
+                    <th>模块</th>
+                    <th>测试数</th>
+                    <th>通过</th>
+                    <th>失败</th>
+                    <th>耗时</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>config</td>
+                    <td>4</td>
+                    <td>4</td>
+                    <td>0</td>
+                    <td class="duration">0.13s</td>
+                    <td><span class="badge-pass">PASS</span></td>
+                </tr>
+                <tr>
+                    <td>handler</td>
+                    <td>11</td>
+                    <td>11</td>
+                    <td>0</td>
+                    <td class="duration">1.73s</td>
+                    <td><span class="badge-pass">PASS</span></td>
+                </tr>
+                <tr>
+                    <td>sandbox</td>
+                    <td>16</td>
+                    <td>16</td>
+                    <td>0</td>
+                    <td class="duration">9.34s</td>
+                    <td><span class="badge-pass">PASS</span></td>
+                </tr>
+                <tr>
+                    <td>service</td>
+                    <td>23</td>
+                    <td>23</td>
+                    <td>0</td>
+                    <td class="duration">0.60s</td>
+                    <td><span class="badge-pass">PASS</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">config 模块 - 配置加载</h2>
+        <table class="test-table">
+            <thead><tr><th>测试名</th><th>耗时</th><th>状态</th></tr></thead>
+            <tbody>
+                <tr><td>TestLoadDefaults</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestLoadFromEnv</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestLLMEnabled</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestGetEnvFallback</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+            </tbody>
+        </table>
+        <p style="color:#8b949e;font-size:0.85em;margin-top:8px;">覆盖：默认值加载、环境变量覆盖、LLM 开关判断、getEnv 回退逻辑</p>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">handler 模块 - HTTP API 测试</h2>
+        <table class="test-table">
+            <thead><tr><th>测试名</th><th>耗时</th><th>状态</th></tr></thead>
+            <tbody>
+                <tr><td>TestRegister_Success</td><td class="duration">0.17s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRegister_DuplicateUser</td><td class="duration">0.15s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRegister_InvalidInput</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestLogin_Success</td><td class="duration">0.22s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestLogin_ByEmail</td><td class="duration">0.20s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestLogin_WrongPassword</td><td class="duration">0.31s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestLogin_UserNotFound</td><td class="duration">0.01s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestAuthMiddleware_ValidToken</td><td class="duration">0.12s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestAuthMiddleware_NoToken</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestAuthMiddleware_InvalidToken</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestAuthMiddleware_WrongFormat</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestAuthMiddleware_EmptyAuth</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+            </tbody>
+        </table>
+        <p style="color:#8b949e;font-size:0.85em;margin-top:8px;">覆盖：注册（成功/重复/参数校验）、登录（用户名/邮箱/错误密码/不存在）、JWT 中间件（有效/无效/缺失/格式错误）</p>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">sandbox 模块 - 代码沙箱执行</h2>
+        <table class="test-table">
+            <thead><tr><th>测试名</th><th>耗时</th><th>状态</th></tr></thead>
+            <tbody>
+                <tr><td>TestRunCode_Python</td><td class="duration">0.07s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRunCode_PythonArithmetic</td><td class="duration">0.06s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRunCode_Go</td><td class="duration">2.99s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRunCode_GoNoPackage</td><td class="duration">0.13s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRunCode_UnsupportedLanguage</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRunCode_PythonSyntaxError</td><td class="duration">0.07s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRunCode_EmptyCode</td><td class="duration">0.07s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestJudgeCode_PythonAllPass</td><td class="duration">0.26s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestJudgeCode_PythonPartialPass</td><td class="duration">0.24s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestJudgeCode_GoAllPass</td><td class="duration">2.87s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestJudgeCode_GoNoPackage</td><td class="duration">2.04s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestJudgeCode_EmptyTestCases</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestJudgeCodeJSON_Valid</td><td class="duration">0.12s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestJudgeCodeJSON_InvalidJSON</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestFileExtension</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestWrapCode_Go</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+            </tbody>
+        </table>
+        <p style="color:#8b949e;font-size:0.85em;margin-top:8px;">覆盖：Python/Go 代码执行、语法错误处理、不支持语言、代码评判（全通过/部分通过/编译失败）、JSON 解析、文件扩展名映射、Go package 自动补全</p>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">service 模块 - 业务逻辑</h2>
+        <table class="test-table">
+            <thead><tr><th>测试名</th><th>耗时</th><th>状态</th></tr></thead>
+            <tbody>
+                <tr><td>TestCourseService_ListCourses</td><td class="duration">0.03s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCourseService_GetLearningPath</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCourseService_LearningPath_UnlockChain</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCourseService_GetExercises_HideAnswer</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCourseService_SubmitAnswer_Correct</td><td class="duration">0.01s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCourseService_SubmitAnswer_Incorrect</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCourseService_SubmitAnswer_CaseInsensitive</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCourseService_SubmitAnswer_CodeType</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCheckAnswer (7 subtests)</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCompleteLesson_FirstTime</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestCompleteLesson_DuplicateNoXP</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestLoseHeart</td><td class="duration">0.01s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestLoseHeart_ZeroFloor</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRestoreHeart</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestRestoreHeart_MaxCap</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestGetStats</td><td class="duration">0.01s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestUpdateStreak_FirstTime</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestUpdateStreak_SameDay</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestUpdateStreak_ConsecutiveDay</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestUpdateStreak_Broken</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+                <tr><td>TestNormalize</td><td class="duration">0.00s</td><td><span class="badge-pass">PASS</span></td></tr>
+            </tbody>
+        </table>
+        <p style="color:#8b949e;font-size:0.85em;margin-top:8px;">覆盖：课程列表、技能树解锁链、答案隐藏、答案判定（正确/错误/大小写不敏感/代码题）、XP 发放（首次/重复防刷）、心数系统（扣减/下限/恢复/上限）、连续打卡（首次/同天/连续/中断）、用户统计</p>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">测试覆盖范围</h2>
+        <div style="margin-bottom: 12px;">
+            <div style="display:flex;justify-content:space-between;color:#8b949e;font-size:0.9em;">
+                <span>config 配置模块</span>
+                <span>100%</span>
+            </div>
+            <div class="coverage-bar"><div class="coverage-fill" style="width:100%">4/4</div></div>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <div style="display:flex;justify-content:space-between;color:#8b949e;font-size:0.9em;">
+                <span>handler HTTP API 层</span>
+                <span>100%</span>
+            </div>
+            <div class="coverage-bar"><div class="coverage-fill" style="width:100%">11/11</div></div>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <div style="display:flex;justify-content:space-between;color:#8b949e;font-size:0.9em;">
+                <span>sandbox 代码沙箱</span>
+                <span>100%</span>
+            </div>
+            <div class="coverage-bar"><div class="coverage-fill" style="width:100%">16/16</div></div>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <div style="display:flex;justify-content:space-between;color:#8b949e;font-size:0.9em;">
+                <span>service 业务逻辑层</span>
+                <span>100%</span>
+            </div>
+            <div class="coverage-bar"><div class="coverage-fill" style="width:100%">23/23</div></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">测试文件清单</h2>
+        <table class="test-table">
+            <thead><tr><th>文件路径</th><th>测试数</th><th>说明</th></tr></thead>
+            <tbody>
+                <tr><td>config/config_test.go</td><td>4</td><td>配置加载、环境变量、LLM 开关</td></tr>
+                <tr><td>sandbox/runner_test.go</td><td>16</td><td>代码执行、评判、JSON 解析、工具函数</td></tr>
+                <tr><td>service/course_service_test.go</td><td>9</td><td>技能树、答案判定、习题获取</td></tr>
+                <tr><td>service/progress_service_test.go</td><td>14</td><td>XP、心数、打卡、统计</td></tr>
+                <tr><td>handler/auth_handler_test.go</td><td>11</td><td>注册、登录、JWT 中间件</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">测试方法论</h2>
+        <div class="tech-stack">
+            <ul>
+                <li>内存 SQLite 数据库隔离测试</li>
+                <li>httptest.NewRecorder HTTP 模拟</li>
+                <li>表驱动测试模式</li>
+                <li>子测试 t.Run() 分组</li>
+                <li>t.Helper() 错误定位</li>
+                <li>t.Setenv() 环境变量隔离</li>
+                <li>bcrypt 密码哈希验证</li>
+                <li>GORM AutoMigrate 自动建表</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        CodeLearn 编程语言学习平台 | Go 1.25 + Gin 1.12 + Eino 0.9 | 测试报告生成于 2026-08-27
+    </div>
+</div>
+</body>
+</html>
