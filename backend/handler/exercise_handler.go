@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -69,12 +70,14 @@ type generateReq struct {
 func (h *ExerciseHandler) Generate(c *gin.Context) {
 	lessonID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
+		log.Printf("[Generate] 课程ID无效: %s", c.Param("id"))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "课程 ID 无效"})
 		return
 	}
 
 	var req generateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[Generate] 参数解析失败: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数无效: " + err.Error()})
 		return
 	}
@@ -88,6 +91,9 @@ func (h *ExerciseHandler) Generate(c *gin.Context) {
 		req.Difficulty = "easy"
 	}
 
+	log.Printf("[Generate] 收到请求: lessonID=%d language=%s topic=%s count=%d type=%s difficulty=%s",
+		lessonID, req.Language, req.Topic, req.Count, req.Type, req.Difficulty)
+
 	// 调用 Eino 框架的 ChatModel 生成习题
 	exercises, err := h.generator.Generate(c.Request.Context(), eino.GenRequest{
 		Language:   req.Language,
@@ -97,18 +103,24 @@ func (h *ExerciseHandler) Generate(c *gin.Context) {
 		Difficulty: req.Difficulty,
 	})
 	if err != nil {
+		log.Printf("[Generate] AI生成失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI 生成习题失败: " + err.Error()})
 		return
 	}
+
+	log.Printf("[Generate] AI生成成功, %d 道习题, 开始保存到数据库", len(exercises))
 
 	// 保存到数据库
 	for i := range exercises {
 		exercises[i].LessonID = uint(lessonID)
 	}
 	if err := h.courseSvc.SaveAIGenExercises(uint(lessonID), exercises); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存习题失败"})
+		log.Printf("[Generate] 保存到数据库失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存习题失败: " + err.Error()})
 		return
 	}
+
+	log.Printf("[Generate] 保存成功, 返回结果")
 
 	// 不暴露答案
 	for i := range exercises {

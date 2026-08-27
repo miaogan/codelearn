@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	"codelearn/config"
@@ -86,40 +87,58 @@ func (g *ExerciseGenerator) buildUserPrompt(req GenRequest) string {
 // Generate 调用 Eino ChatModel 生成习题并解析为数据库模型。
 // Eino 的 ChatModel 是核心组件之一，通过 Generate 方法接收消息列表并返回 LLM 响应。
 func (g *ExerciseGenerator) Generate(ctx context.Context, req GenRequest) ([]domainmodel.Exercise, error) {
+	log.Printf("[AI生成] 开始: language=%s topic=%s count=%d type=%s difficulty=%s",
+		req.Language, req.Topic, req.Count, req.Type, req.Difficulty)
+	log.Printf("[AI生成] LLM配置: baseURL=%s model=%s apiKeyLen=%d",
+		g.cfg.LLMBaseURL, g.cfg.LLMModel, len(g.cfg.LLMAPIKey))
+
+	if g.cfg.LLMAPIKey == "" {
+		log.Printf("[AI生成] 错误: LLM_API_KEY 未设置")
+		return nil, fmt.Errorf("LLM_API_KEY 未设置，请配置环境变量 LLM_API_KEY")
+	}
+
 	// 使用 EinoExt 的 OpenAI 兼容模型实现创建 ChatModel
-	// 支持任何兼容 OpenAI API 的模型服务（OpenAI / 豆包 Ark / Ollama 等）
+	log.Printf("[AI生成] 创建 ChatModel...")
 	chatModel, err := openaillm.NewChatModel(ctx, &openaillm.ChatModelConfig{
 		APIKey:  g.cfg.LLMAPIKey,
 		BaseURL: g.cfg.LLMBaseURL,
 		Model:   g.cfg.LLMModel,
 	})
 	if err != nil {
+		log.Printf("[AI生成] 创建 ChatModel 失败: %v", err)
 		return nil, fmt.Errorf("创建 ChatModel 失败: %w", err)
 	}
+	log.Printf("[AI生成] ChatModel 创建成功")
 
 	// 使用 Eino 的 schema.Message 构造对话消息
-	// schema.System / schema.User / schema.Assistant 是预定义的角色常量
 	messages := []*schema.Message{
 		{Role: schema.System, Content: g.buildSystemPrompt(req)},
 		{Role: schema.User, Content: g.buildUserPrompt(req)},
 	}
 
-	// 调用 ChatModel.Generate —— Eino 核心组件接口方法
-	// 返回 *schema.Message，其中 Content 字段包含 LLM 生成的文本
+	// 调用 ChatModel.Generate
+	log.Printf("[AI生成] 调用 LLM Generate...")
 	resp, err := chatModel.Generate(ctx, messages)
 	if err != nil {
+		log.Printf("[AI生成] LLM 调用失败: %v", err)
 		return nil, fmt.Errorf("调用 LLM 生成失败: %w", err)
 	}
 
 	content := cleanJSON(resp.Content)
+	log.Printf("[AI生成] LLM 返回内容长度=%d, 前200字符: %s", len(content), truncate(content, 200))
 
 	var genExercises []GenExercise
 	if err := json.Unmarshal([]byte(content), &genExercises); err != nil {
-		return nil, fmt.Errorf("解析 LLM 返回的 JSON 失败: %w", err)
+		log.Printf("[AI生成] JSON解析失败: %v", err)
+		log.Printf("[AI生成] 原始内容: %s", truncate(content, 500))
+		return nil, fmt.Errorf("解析 LLM 返回的 JSON 失败: %w (原始内容: %s)", err, truncate(content, 200))
 	}
+
+	log.Printf("[AI生成] JSON解析成功, 共 %d 道习题", len(genExercises))
 
 	exercises := make([]domainmodel.Exercise, 0, len(genExercises))
 	for i, ge := range genExercises {
+		log.Printf("[AI生成] 习题#%d: type=%s question=%s", i, ge.Type, truncate(ge.Question, 50))
 		ex := domainmodel.Exercise{
 			Type:        ge.Type,
 			Question:    ge.Question,
@@ -143,17 +162,28 @@ func (g *ExerciseGenerator) Generate(ctx context.Context, req GenRequest) ([]dom
 		exercises = append(exercises, ex)
 	}
 
+	log.Printf("[AI生成] 完成, 生成 %d 道习题", len(exercises))
 	return exercises, nil
 }
 
 // GenerateHint 调用 LLM 为学生答错的题目提供学习提示（引导思考，不直接给答案）
 func (g *ExerciseGenerator) GenerateHint(ctx context.Context, question, userAnswer, language string) (string, error) {
+	log.Printf("[AI提示] 开始: language=%s question=%s userAnswer=%s",
+		language, truncate(question, 50), truncate(userAnswer, 50))
+
+	if g.cfg.LLMAPIKey == "" {
+		log.Printf("[AI提示] 错误: LLM_API_KEY 未设置")
+		return "", fmt.Errorf("LLM_API_KEY 未设置")
+	}
+
+	log.Printf("[AI提示] 创建 ChatModel...")
 	chatModel, err := openaillm.NewChatModel(ctx, &openaillm.ChatModelConfig{
 		APIKey:  g.cfg.LLMAPIKey,
 		BaseURL: g.cfg.LLMBaseURL,
 		Model:   g.cfg.LLMModel,
 	})
 	if err != nil {
+		log.Printf("[AI提示] 创建 ChatModel 失败: %v", err)
 		return "", fmt.Errorf("创建 ChatModel 失败: %w", err)
 	}
 
@@ -168,10 +198,14 @@ func (g *ExerciseGenerator) GenerateHint(ctx context.Context, question, userAnsw
 		{Role: schema.User, Content: "请给我一个提示。"},
 	}
 
+	log.Printf("[AI提示] 调用 LLM Generate...")
 	resp, err := chatModel.Generate(ctx, messages)
 	if err != nil {
+		log.Printf("[AI提示] LLM 调用失败: %v", err)
 		return "", fmt.Errorf("生成提示失败: %w", err)
 	}
+
+	log.Printf("[AI提示] 成功, 提示长度=%d", len(resp.Content))
 	return resp.Content, nil
 }
 
@@ -189,4 +223,11 @@ func pickDifficulty(d, fallback string) string {
 		return strings.ToLower(d)
 	}
 	return fallback
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }
