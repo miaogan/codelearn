@@ -119,6 +119,13 @@ func buildGoExercises(lessons []model.Lesson) []model.Exercise {
 		{LessonID: lessons[6].ID, Type: "code", Question: "读取一个整数 n，输出 n*2。", CodeTemplate: "package main\n\nimport \"fmt\"\n\nfunc main() {\n    var n int\n    fmt.Scan(&n)\n    // 在这里写你的代码\n}", TestCases: tc("5", "10", "7", "14"), Difficulty: "easy", Order: 2},
 		{LessonID: lessons[7].ID, Type: "choice", Question: "Go 使用什么关键字定义结构体？", Options: opts("struct", "class", "object", "record"), Answer: "struct", Explanation: "Go 使用 type 和 struct 关键字定义结构体，没有 class 关键字。", Difficulty: "easy", Order: 1},
 		{LessonID: lessons[7].ID, Type: "fillblank", Question: "定义结构体：type Person ___ { Name string }", Answer: "struct", Explanation: "type Name struct { ... } 是定义结构体的语法。", Difficulty: "easy", Order: 2},
+		// Sprint 5 题库扩充
+		{LessonID: lessons[0].ID, Type: "choice", Question: "Go 中布尔类型的声明关键字是什么？", Options: opts("bool", "boolean", "flag", "bit"), Answer: "bool", Explanation: "Go 的布尔类型关键字是 bool，只有 true 和 false 两个值。", Difficulty: "easy", Order: 3},
+		{LessonID: lessons[1].ID, Type: "fillblank", Question: "fmt 包中输出文本并换行的函数是 ___()", Answer: "Println", Explanation: "fmt.Println() 输出内容并自动换行，是最常用的输出函数。", Difficulty: "easy", Order: 3},
+		{LessonID: lessons[2].ID, Type: "choice", Question: "switch 中多个 case 匹配同一分支用什么分隔？", Options: opts("逗号", "分号", "竖线", "冒号"), Answer: "逗号", Explanation: "Go 的 switch 允许 case 中用逗号分隔多个匹配值，如 case 1, 2, 3:。", Difficulty: "medium", Order: 3},
+		{LessonID: lessons[4].ID, Type: "fillblank", Question: "Go 中使用 ___ 关键字声明函数。", Answer: "func", Explanation: "func 是 Go 声明函数的关键字，支持多返回值。", Difficulty: "easy", Order: 3},
+		{LessonID: lessons[5].ID, Type: "choice", Question: "获取切片长度使用哪个内置函数？", Options: opts("len", "cap", "size", "count"), Answer: "len", Explanation: "len() 返回切片当前长度，cap() 返回容量。", Difficulty: "easy", Order: 3},
+		{LessonID: lessons[6].ID, Type: "fillblank", Question: "声明 map：m := make(map[string]___)", Answer: "int", Explanation: "map[string]int 表示键为 string、值为 int 的映射。", Difficulty: "medium", Order: 3},
 	}
 }
 
@@ -140,5 +147,12 @@ func buildPythonExercises(lessons []model.Lesson) []model.Exercise {
 		{LessonID: lessons[6].ID, Type: "fillblank", Question: "创建空字典：d = ___", Answer: "{}", Explanation: "{} 或 dict() 都可以创建空字典。", Difficulty: "easy", Order: 2},
 		{LessonID: lessons[7].ID, Type: "choice", Question: "集合的特点是什么？", Options: opts("无序不重复", "有序可重复", "无序可重复", "有序不重复"), Answer: "无序不重复", Explanation: "集合是无序且不重复的元素集合。", Difficulty: "easy", Order: 1},
 		{LessonID: lessons[7].ID, Type: "code", Question: "读取整数 n，输出 n 的平方。", CodeTemplate: "n = int(input())\n# 在这里写你的代码", TestCases: tc("5", "25", "7", "49"), Difficulty: "easy", Order: 2},
+		// Sprint 5 题库扩充
+		{LessonID: lessons[0].ID, Type: "choice", Question: "Python 中布尔值如何表示？", Options: opts("True / False", "true / false", "1 / 0", "yes / no"), Answer: "True / False", Explanation: "Python 的布尔值首字母大写：True 和 False。", Difficulty: "easy", Order: 3},
+		{LessonID: lessons[1].ID, Type: "fillblank", Question: "Python 中字符串拼接使用运算符 ___", Answer: "+", Explanation: "+ 可以将多个字符串连接成一个，如 \"a\" + \"b\" == \"ab\"。", Difficulty: "easy", Order: 3},
+		{LessonID: lessons[2].ID, Type: "choice", Question: "for 循环中跳过本次迭代使用哪个关键字？", Options: opts("continue", "break", "pass", "next"), Answer: "continue", Explanation: "continue 跳过当前迭代进入下一次；break 直接结束整个循环。", Difficulty: "easy", Order: 3},
+		{LessonID: lessons[4].ID, Type: "fillblank", Question: "定义空函数体时使用 ___ 关键字占位。", Answer: "pass", Explanation: "pass 是空语句，常用于占位保证缩进块语法正确。", Difficulty: "easy", Order: 3},
+		{LessonID: lessons[5].ID, Type: "choice", Question: "删除列表中指定位置的元素用哪个方法？", Options: opts("pop", "remove", "del", "delete"), Answer: "pop", Explanation: "list.pop(index) 按位置弹出元素；remove 按值删除第一个匹配项。", Difficulty: "medium", Order: 3},
+		{LessonID: lessons[6].ID, Type: "fillblank", Question: "元组与列表的主要区别是元组创建后 ___（不可修改）", Answer: "不可变", Explanation: "元组 tuple 是不可变序列，列表 list 可变。", Difficulty: "easy", Order: 3},
 	}
 }

@@ -11,6 +11,7 @@ type Config struct {
 	LLMAPIKey     string
 	LLMBaseURL    string
 	LLMModel      string
+	AdminToken    string
 	MaxHearts     int
 	XPPerLesson   int
 	XPPerExercise int
@@ -24,6 +25,7 @@ func Load() *Config {
 		LLMAPIKey:     getEnv("LLM_API_KEY", ""),
 		LLMBaseURL:    getEnv("LLM_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
 		LLMModel:      getEnv("LLM_MODEL", "doubao-1-5-pro-32k-250115"),
+		AdminToken:    getEnv("ADMIN_TOKEN", ""),
 		MaxHearts:     5,
 		XPPerLesson:   20,
 		XPPerExercise: 10,

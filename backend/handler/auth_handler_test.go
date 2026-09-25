@@ -10,6 +10,7 @@ import (
 	"codelearn/middleware"
 	"codelearn/model"
 	"codelearn/repository"
+	"codelearn/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -22,10 +23,10 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *gorm.DB, *AuthHandler, *reposi
 	if err != nil {
 		t.Fatalf("failed to open db: %v", err)
 	}
-	db.AutoMigrate(&model.User{}, &model.Course{}, &model.Unit{}, &model.Lesson{}, &model.Exercise{}, &model.UserProgress{}, &model.Submission{})
+	db.AutoMigrate(&model.User{}, &model.Course{}, &model.Unit{}, &model.Lesson{}, &model.Exercise{}, &model.UserProgress{}, &model.Submission{}, &model.AnalyticsEvent{}, &model.UserFeedback{})
 
 	repo := repository.New(db)
-	authHandler := NewAuthHandler(repo, "test-secret", 5)
+	authHandler := NewAuthHandler(repo, "test-secret", 5, service.NewAnalyticsService(repo))
 
 	r := gin.New()
 	api := r.Group("/api")

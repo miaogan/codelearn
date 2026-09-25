@@ -156,4 +156,9 @@ export const knowledgeApi = {
     api.post('/knowledge/ask', data),
 }
 
+export const feedbackApi = {
+  submit: (data: { category: string; content: string; contact?: string }) =>
+    api.post<{ message: string }>('/feedback', data),
+}
+
 export default api

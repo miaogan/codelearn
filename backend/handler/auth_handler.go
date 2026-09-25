@@ -7,6 +7,7 @@ import (
 	"codelearn/middleware"
 	"codelearn/model"
 	"codelearn/repository"
+	"codelearn/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -17,10 +18,11 @@ type AuthHandler struct {
 	repo       *repository.Repository
 	jwtSecret  string
 	maxHearts  int
+	analytics  *service.AnalyticsService
 }
 
-func NewAuthHandler(repo *repository.Repository, jwtSecret string, maxHearts int) *AuthHandler {
-	return &AuthHandler{repo: repo, jwtSecret: jwtSecret, maxHearts: maxHearts}
+func NewAuthHandler(repo *repository.Repository, jwtSecret string, maxHearts int, analytics *service.AnalyticsService) *AuthHandler {
+	return &AuthHandler{repo: repo, jwtSecret: jwtSecret, maxHearts: maxHearts, analytics: analytics}
 }
 
 type registerReq struct {
@@ -54,6 +56,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "用户名或邮箱已存在"})
 		return
 	}
+
+	// 埋点：注册漏斗
+	h.analytics.Record(service.EventRegister, user.ID, 0)
 
 	token, err := h.generateToken(user)
 	if err != nil {

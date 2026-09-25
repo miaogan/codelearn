@@ -14,10 +14,11 @@ import (
 type CodeHandler struct {
 	courseSvc   *service.CourseService
 	progressSvc *service.ProgressService
+	analytics   *service.AnalyticsService
 }
 
-func NewCodeHandler(courseSvc *service.CourseService, progressSvc *service.ProgressService) *CodeHandler {
-	return &CodeHandler{courseSvc: courseSvc, progressSvc: progressSvc}
+func NewCodeHandler(courseSvc *service.CourseService, progressSvc *service.ProgressService, analytics *service.AnalyticsService) *CodeHandler {
+	return &CodeHandler{courseSvc: courseSvc, progressSvc: progressSvc, analytics: analytics}
 }
 
 type runReq struct {
@@ -85,11 +86,14 @@ func (h *CodeHandler) CompleteLesson(c *gin.Context) {
 
 	userID := middleware.GetUserID(c)
 	score := 100 // 默认满分
-
 	xp, err := h.progressSvc.CompleteLesson(userID, uint(lessonID), score)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存进度失败"})
 		return
+	}
+	// 埋点：首次完成课时计入漏斗
+	if xp > 0 {
+		h.analytics.Record(service.EventLessonComplete, userID, 0)
 	}
 
 	hearts, _ := h.progressSvc.RestoreHeart(userID)

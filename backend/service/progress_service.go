@@ -90,11 +90,11 @@ func (s *ProgressService) CompleteLesson(userID, lessonID uint, score int) (int,
 	}
 
 	// 更新用户 XP 和连续打卡
+	s.addUserXP(userID, xpEarned)
 	user, err := s.repo.GetUserByID(userID)
 	if err != nil {
 		return xpEarned, nil
 	}
-	user.XP += xpEarned
 	updateStreak(user)
 	s.repo.UpdateUser(user)
 
@@ -106,27 +106,42 @@ func (s *ProgressService) CompleteLesson(userID, lessonID uint, score int) (int,
 	return xpEarned, nil
 }
 
-// RecordExerciseXP 记录练习答对 XP（每日上限防刷）
-func (s *ProgressService) RecordExerciseXP(userID uint) {
+// RecordExerciseXP 记录练习答对 XP（每日上限防刷），返回实际发放的 XP。
+// 与 XP 流水同口径：仅在事件真正写入时才累加用户总 XP。
+func (s *ProgressService) RecordExerciseXP(userID uint) int {
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	count, err := s.repo.CountXPEventsByReasonSince(userID, XPReasonExercise, start)
 	if err != nil || int(count) >= MaxExerciseXPEventsPerDay {
-		return
+		return 0
 	}
 	_ = s.repo.CreateXPEvent(&model.XPEvent{
 		UserID: userID, Amount: s.xpExercise, Reason: XPReasonExercise, CreatedAt: now,
 	})
+	s.addUserXP(userID, s.xpExercise)
+	return s.xpExercise
 }
 
-// RecordExamXP 记录考试通过 XP
-func (s *ProgressService) RecordExamXP(userID uint, amount int) {
+// RecordExamXP 记录考试通过 XP，返回实际发放的 XP
+func (s *ProgressService) RecordExamXP(userID uint, amount int) int {
 	if amount <= 0 {
-		return
+		return 0
 	}
 	_ = s.repo.CreateXPEvent(&model.XPEvent{
 		UserID: userID, Amount: amount, Reason: XPReasonExam, CreatedAt: time.Now(),
 	})
+	s.addUserXP(userID, amount)
+	return amount
+}
+
+// addUserXP 累加用户总 XP，保证 user.XP 与 XP 流水（xp_events）同口径
+func (s *ProgressService) addUserXP(userID uint, amount int) {
+	user, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		return
+	}
+	user.XP += amount
+	_ = s.repo.UpdateUser(user)
 }
 
 // UpdateDailyGoal 更新每日目标（XP），限制在 [10, 500]，返回实际生效值

@@ -8,14 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler, exam *handler.ExamHandler, leaderboard *handler.LeaderboardHandler, cert *handler.CertificateHandler, skill *handler.SkillHandler) *gin.Engine {
+func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler, exam *handler.ExamHandler, leaderboard *handler.LeaderboardHandler, cert *handler.CertificateHandler, skill *handler.SkillHandler, analytics *handler.AnalyticsHandler) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Admin-Token")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
@@ -28,6 +28,9 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 		api.POST("/auth/register", auth.Register)
 		api.POST("/auth/login", auth.Login)
 		api.POST("/certificates/verify", cert.Verify)
+
+		// 管理端：学习漏斗（需 X-Admin-Token）
+		api.GET("/admin/funnel", analytics.Funnel)
 
 		authed := api.Group("")
 		authed.Use(middleware.AuthMiddleware(cfg.JWTSecret))
@@ -46,6 +49,9 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 			authed.POST("/code/run", code.Run)
 			authed.POST("/code/judge", code.Judge)
 			authed.POST("/lessons/:id/complete", code.CompleteLesson)
+
+			// 用户反馈
+			authed.POST("/feedback", analytics.SubmitFeedback)
 
 			authed.GET("/users/me/stats", progress.Stats)
 			authed.GET("/users/me/progress", progress.ListProgress)

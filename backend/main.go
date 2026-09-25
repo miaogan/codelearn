@@ -32,12 +32,19 @@ func main() {
 		&model.Submission{}, &model.WrongExercise{},
 		&model.XPEvent{}, &model.Exam{}, &model.ExamQuestion{},
 		&model.ExamSubmission{}, &model.Certificate{},
+		&model.AnalyticsEvent{}, &model.UserFeedback{},
 	); err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 	}
 
 	// 初始化各层
 	repo := repository.New(db)
+
+	// 从 XP 流水对账用户总 XP（保证顶栏与今日进度同口径）
+	if err := repo.RebuildUserXP(); err != nil {
+		log.Printf("XP 对账警告: %v", err)
+	}
+
 	courseSvc := service.NewCourseService(repo)
 	progressSvc := service.NewProgressService(repo, cfg.XPPerLesson, cfg.XPPerExercise, cfg.MaxHearts)
 	wrongSvc := service.NewWrongExerciseService(repo)
@@ -45,6 +52,7 @@ func main() {
 	leaderboardSvc := service.NewLeaderboardService(repo)
 	certSvc := service.NewCertificateService(repo)
 	skillSvc := service.NewSkillMapService(repo)
+	analyticsSvc := service.NewAnalyticsService(repo)
 	generator := eino.NewExerciseGenerator(cfg)
 
 	// Eino 组件初始化
@@ -53,22 +61,23 @@ func main() {
 	knowledgeRAG := eino.NewKnowledgeRAG(cfg, repo)
 
 	// 初始化处理器
-	authHandler := handler.NewAuthHandler(repo, cfg.JWTSecret, cfg.MaxHearts)
+	authHandler := handler.NewAuthHandler(repo, cfg.JWTSecret, cfg.MaxHearts, analyticsSvc)
 	courseHandler := handler.NewCourseHandler(courseSvc)
 	exerciseHandler := handler.NewExerciseHandler(courseSvc, progressSvc, generator)
-	codeHandler := handler.NewCodeHandler(courseSvc, progressSvc)
+	codeHandler := handler.NewCodeHandler(courseSvc, progressSvc, analyticsSvc)
 	progressHandler := handler.NewProgressHandler(progressSvc)
 	wrongHandler := handler.NewWrongExerciseHandler(wrongSvc)
 	adaptiveHandler := handler.NewAdaptiveHandler(adaptiveAdvisor, repo)
 	tutorHandler := handler.NewTutorHandler(tutorAgent)
 	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeRAG)
-	examHandler := handler.NewExamHandler(examSvc, progressSvc, certSvc)
+	examHandler := handler.NewExamHandler(examSvc, progressSvc, certSvc, analyticsSvc)
 	leaderboardHandler := handler.NewLeaderboardHandler(leaderboardSvc)
 	certHandler := handler.NewCertificateHandler(certSvc)
 	skillHandler := handler.NewSkillHandler(skillSvc)
+	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc, cfg.AdminToken)
 
 	// 初始化路由
-	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler, skillHandler)
+	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler, skillHandler, analyticsHandler)
 
 	// 种子数据
 	if err := seedData(repo); err != nil {

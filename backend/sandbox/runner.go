@@ -44,6 +44,13 @@ const defaultTimeout = 10 * time.Second
 // RunCode 执行用户提交的代码并返回输出。
 // 注意：当前为直接执行，生产环境应使用 Docker 容器隔离。
 func RunCode(language, code string) *RunResult {
+	if msg := rejectMalicious(code); msg != "" {
+		return &RunResult{Error: msg, ExitCode: -1}
+	}
+	if err := sandboxBreaker.check(language); err != nil {
+		return &RunResult{Error: err.Error(), ExitCode: -1}
+	}
+
 	dir, err := os.MkdirTemp("", "codelearn-*")
 	if err != nil {
 		return &RunResult{Error: "创建临时目录失败: " + err.Error(), ExitCode: -1}
@@ -68,11 +75,25 @@ func RunCode(language, code string) *RunResult {
 		return &RunResult{Error: "不支持的语言: " + language, ExitCode: -1}
 	}
 
-	return execCmd(ctx, cmd, "")
+	r := execCmd(ctx, cmd, "")
+	// 超时视为沙箱基础设施故障，触发熔断；正常完成则复位
+	if strings.Contains(r.Error, "执行超时") {
+		sandboxBreaker.recordFailure(language)
+	} else if r.ExitCode == 0 {
+		sandboxBreaker.recordSuccess(language)
+	}
+	return r
 }
 
 // JudgeCode 用测试用例评判用户代码
 func JudgeCode(language, code string, testCases []TestCase) *JudgeResult {
+	if msg := rejectMalicious(code); msg != "" {
+		return rejectedJudgeResult(testCases, msg)
+	}
+	if err := sandboxBreaker.check(language); err != nil {
+		return rejectedJudgeResult(testCases, err.Error())
+	}
+
 	result := &JudgeResult{
 		Results:    make([]TestCaseResult, 0, len(testCases)),
 		TotalCount: len(testCases),
@@ -111,6 +132,7 @@ func JudgeCode(language, code string, testCases []TestCase) *JudgeResult {
 		buildCmd.Dir = dir
 		buildOut, buildErr := buildCmd.CombinedOutput()
 		if buildErr != nil {
+			sandboxBreaker.recordFailure(language)
 			for _, tc := range testCases {
 				result.Results = append(result.Results, TestCaseResult{
 					Input: tc.Input, Expected: tc.Expected,
@@ -121,11 +143,12 @@ func JudgeCode(language, code string, testCases []TestCase) *JudgeResult {
 		}
 	}
 
+	infraFail := false
 	for _, tc := range testCases {
 		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		var cmd *exec.Cmd
 		if language == "go" && binaryPath != "" {
-			cmd = exec.CommandContext(ctx, binaryPath)
+			cmd = limitWrap(ctx, language, []string{binaryPath})
 		} else {
 			cmd = buildRunCommand(ctx, language, path)
 		}
@@ -139,6 +162,9 @@ func JudgeCode(language, code string, testCases []TestCase) *JudgeResult {
 
 		r := execCmd(ctx, cmd, tc.Input)
 		cancel()
+		if strings.Contains(r.Error, "执行超时") {
+			infraFail = true
+		}
 
 		actual := strings.TrimSpace(r.Output)
 		expected := strings.TrimSpace(tc.Expected)
@@ -158,7 +184,26 @@ func JudgeCode(language, code string, testCases []TestCase) *JudgeResult {
 			result.PassCount++
 		}
 	}
+	if infraFail {
+		sandboxBreaker.recordFailure(language)
+	} else {
+		sandboxBreaker.recordSuccess(language)
+	}
 	result.AllPass = result.PassCount == result.TotalCount
+	return result
+}
+
+// rejectedJudgeResult 构建被拦截/熔断时的判题结果
+func rejectedJudgeResult(testCases []TestCase, msg string) *JudgeResult {
+	result := &JudgeResult{
+		Results:    make([]TestCaseResult, 0, len(testCases)),
+		TotalCount: len(testCases),
+	}
+	for _, tc := range testCases {
+		result.Results = append(result.Results, TestCaseResult{
+			Input: tc.Input, Expected: tc.Expected, Error: msg,
+		})
+	}
 	return result
 }
 
@@ -213,9 +258,9 @@ func execCmd(ctx context.Context, cmd *exec.Cmd, stdin string) *RunResult {
 func buildRunCommand(ctx context.Context, language, path string) *exec.Cmd {
 	switch language {
 	case "python", "py":
-		return exec.CommandContext(ctx, "python", path)
+		return limitWrap(ctx, language, []string{"python", path})
 	case "go":
-		return exec.CommandContext(ctx, "go", "run", path)
+		return limitWrap(ctx, language, []string{"go", "run", path})
 	default:
 		return nil
 	}

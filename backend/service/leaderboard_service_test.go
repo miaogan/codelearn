@@ -24,6 +24,35 @@ func TestRecordExerciseXP_Cap(t *testing.T) {
 	if count != MaxExerciseXPEventsPerDay {
 		t.Errorf("expected %d exercise XP events, got %d", MaxExerciseXPEventsPerDay, count)
 	}
+
+	// 口径一致：用户总 XP == 练习流水总量（10 次 × 10）
+	updated, _ := repo.GetUserByID(user.ID)
+	if updated.XP != MaxExerciseXPEventsPerDay*10 {
+		t.Errorf("expected user XP=%d (10 events), got %d", MaxExerciseXPEventsPerDay*10, updated.XP)
+	}
+}
+
+// 考试 XP 与用户总 XP 同口径
+func TestRecordExamXP_UpdatesUserXP(t *testing.T) {
+	db := setupTestDB(t)
+	repo := newTestRepo(db)
+	svc := NewProgressService(repo, 20, 10, 5)
+
+	user := seedUser(db)
+
+	got := svc.RecordExamXP(user.ID, 20)
+	if got != 20 {
+		t.Errorf("expected 20 awarded, got %d", got)
+	}
+	updated, _ := repo.GetUserByID(user.ID)
+	if updated.XP != 20 {
+		t.Errorf("expected user XP=20, got %d", updated.XP)
+	}
+
+	// 无意义金额不发
+	if svc.RecordExamXP(user.ID, 0) != 0 {
+		t.Error("expected 0 for non-positive amount")
+	}
 }
 
 func TestCompleteLesson_RecordsXPEvent(t *testing.T) {

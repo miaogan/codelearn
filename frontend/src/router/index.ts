@@ -86,6 +86,17 @@ const router = createRouter({
       component: () => import('@/views/VerifyView.vue'),
     },
     {
+      path: '/legal',
+      name: 'legal',
+      component: () => import('@/views/LegalView.vue'),
+    },
+    {
+      path: '/feedback',
+      name: 'feedback',
+      component: () => import('@/views/FeedbackView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/wrong-exercises',
       name: 'wrong-exercises',
       component: () => import('@/views/WrongExercisesView.vue'),

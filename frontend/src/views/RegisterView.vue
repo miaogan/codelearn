@@ -9,10 +9,15 @@ const router = useRouter()
 const username = ref('')
 const email = ref('')
 const password = ref('')
+const agreeTerms = ref(false)
 const error = ref('')
 const loading = ref(false)
 
 async function handleRegister() {
+  if (!agreeTerms.value) {
+    error.value = '请先阅读并同意《用户协议》与《隐私政策》'
+    return
+  }
   error.value = ''
   loading.value = true
   try {
@@ -45,8 +50,12 @@ async function handleRegister() {
         <label>密码</label>
         <input v-model="password" type="password" placeholder="至少 6 位" required minlength="6" />
       </div>
+      <label class="agree-terms">
+        <input v-model="agreeTerms" type="checkbox" />
+        <span>我已阅读并同意 <router-link to="/legal" target="_blank">《用户协议》</router-link> 与 <router-link to="/legal" target="_blank">《隐私政策》</router-link></span>
+      </label>
       <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" class="btn-primary" :disabled="loading">
+      <button type="submit" class="btn-primary" :disabled="loading || !agreeTerms">
         {{ loading ? '注册中...' : '注册' }}
       </button>
     </form>
@@ -71,6 +80,16 @@ async function handleRegister() {
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 14px; color: var(--text-light); font-weight: 800; }
 .error { color: var(--danger); text-align: center; font-size: 14px; }
+.agree-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-light);
+  cursor: pointer;
+}
+.agree-terms input { margin-top: 2px; }
+.agree-terms a { color: var(--secondary); font-weight: 800; }
 .auth-form .btn-primary { margin-top: 8px; width: 100%; }
 .switch-link { margin-top: 24px; color: var(--text-light); }
 .switch-link a { color: var(--secondary); font-weight: 800; }

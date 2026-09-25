@@ -137,7 +137,10 @@ function getCid(): number {
       </div>
 
       <div class="exercise-card" :class="{ shake: checked && !checkResult?.correct, pop: checked && checkResult?.correct }">
-        <div class="exercise-question">{{ currentExercise.question }}</div>
+        <div class="exercise-question">
+          {{ currentExercise.question }}
+          <span v-if="currentExercise.is_ai_gen" class="ai-badge" title="该内容由 AI 生成，请结合官方资料甄别使用">AI 生成</span>
+        </div>
 
         <div class="exercise-body">
           <ChoiceExercise v-if="currentExercise.type === 'choice'" :exercise="currentExercise" @answer="userAnswer = $event" />
@@ -254,6 +257,19 @@ function getCid(): number {
   font-weight: 800;
   margin-bottom: 20px;
   line-height: 1.5;
+}
+
+.ai-badge {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-size: 11px;
+  font-weight: 800;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 1px 8px;
 }
 
 .exercise-body { margin-bottom: 8px; }

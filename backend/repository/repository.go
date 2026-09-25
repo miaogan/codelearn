@@ -450,3 +450,39 @@ func (r *Repository) CountCertificates(userID, courseID uint) (int64, error) {
 		Count(&count).Error
 	return count, err
 }
+
+// RebuildUserXP 从 XP 流水对账用户总 XP（修复历史口径不一致）
+func (r *Repository) RebuildUserXP() error {
+	return r.db.Exec(
+		`UPDATE users SET xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_events WHERE xp_events.user_id = users.id)`,
+	).Error
+}
+
+// AnalyticsEvent 埋点
+
+func (r *Repository) CreateAnalyticsEvent(e *model.AnalyticsEvent) error {
+	return r.db.Create(e).Error
+}
+
+// AnalyticsFunnelRow 漏斗行：某事件类型覆盖的去重用户数
+type AnalyticsFunnelRow struct {
+	EventType string `json:"event_type"`
+	Users     int64  `json:"users"`
+}
+
+func (r *Repository) AnalyticsFunnel(since time.Time) ([]AnalyticsFunnelRow, error) {
+	var rows []AnalyticsFunnelRow
+	err := r.db.Table("analytics_events").
+		Select("event_type, COUNT(DISTINCT user_id) as users").
+		Where("created_at >= ?", since).
+		Group("event_type").
+		Order("event_type ASC").
+		Scan(&rows).Error
+	return rows, err
+}
+
+// UserFeedback 用户反馈
+
+func (r *Repository) CreateFeedback(f *model.UserFeedback) error {
+	return r.db.Create(f).Error
+}

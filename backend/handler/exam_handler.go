@@ -15,10 +15,11 @@ type ExamHandler struct {
 	examSvc     *service.ExamService
 	progressSvc *service.ProgressService
 	certSvc     *service.CertificateService
+	analytics   *service.AnalyticsService
 }
 
-func NewExamHandler(examSvc *service.ExamService, progressSvc *service.ProgressService, certSvc *service.CertificateService) *ExamHandler {
-	return &ExamHandler{examSvc: examSvc, progressSvc: progressSvc, certSvc: certSvc}
+func NewExamHandler(examSvc *service.ExamService, progressSvc *service.ProgressService, certSvc *service.CertificateService, analytics *service.AnalyticsService) *ExamHandler {
+	return &ExamHandler{examSvc: examSvc, progressSvc: progressSvc, certSvc: certSvc, analytics: analytics}
 }
 
 // StartUnitExam 组装并开始单元考试（前置：单元内课时全部完成）
@@ -126,9 +127,12 @@ func (h *ExamHandler) SubmitExam(c *gin.Context) {
 		if report.ExamType == service.ExamTypeCert {
 			if cert, err := h.certSvc.IssueCertificate(userID, report.CourseID, report.Score); err == nil {
 				report.Certificate = cert
+				h.analytics.Record(service.EventCertIssued, userID, report.CourseID)
 			} else if err != service.ErrAlreadyCertified {
 				log.Printf("[SubmitExam] issue certificate err=%v", err)
 			}
+		} else {
+			h.analytics.Record(service.EventUnitExamPassed, userID, report.CourseID)
 		}
 	}
 	c.JSON(http.StatusOK, report)

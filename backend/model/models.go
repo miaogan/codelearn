@@ -161,3 +161,23 @@ type Certificate struct {
 	IssuedAt    time.Time `json:"issued_at"`
 	CreatedAt   time.Time `json:"created_at"`
 }
+
+// AnalyticsEvent 用户行为埋点（注册/首课/单元考试/认证漏斗数据源）
+type AnalyticsEvent struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"index;not null" json:"user_id"`
+	EventType string    `gorm:"size:30;index;not null" json:"event_type"` // register / lesson_complete / unit_exam_passed / cert_issued
+	CourseID  uint      `gorm:"index" json:"course_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// UserFeedback 用户反馈/问题上报
+type UserFeedback struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"index;not null" json:"user_id"`
+	Category  string    `gorm:"size:20;not null" json:"category"` // bug / suggestion / content / other
+	Content   string    `gorm:"type:text;not null" json:"content"`
+	Contact   string    `gorm:"size:100" json:"contact"`
+	Status    string    `gorm:"size:20;default:open" json:"status"` // open / resolved
+	CreatedAt time.Time `json:"created_at"`
+}

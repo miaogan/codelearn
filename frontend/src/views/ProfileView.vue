@@ -131,6 +131,7 @@ function logout() {
       <router-link to="/" class="btn-secondary">继续学习</router-link>
       <router-link to="/leaderboard" class="btn-secondary">排行榜</router-link>
       <router-link to="/certificates" class="btn-secondary">🎖️ 我的证书</router-link>
+      <router-link to="/feedback" class="btn-secondary">📮 问题反馈</router-link>
       <button class="btn-ghost" @click="logout">退出登录</button>
     </div>
   </div>
