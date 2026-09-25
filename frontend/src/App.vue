@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { userApi } from '@/api/client'
 import StatsBar from '@/components/StatsBar.vue'
+import PwaBanner from '@/components/PwaBanner.vue'
 
 const auth = useAuthStore()
 
@@ -26,6 +27,7 @@ onMounted(async () => {
         <component :is="Component" />
       </transition>
     </router-view>
+    <PwaBanner />
   </div>
 </template>
 

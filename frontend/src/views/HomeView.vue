@@ -172,6 +172,22 @@ const CIRC = 2 * Math.PI * R
         </div>
         <span class="quick-arrow">→</span>
       </div>
+      <div class="quick-item project" @click="router.push('/projects')">
+        <span class="quick-icon">🛠️</span>
+        <div class="quick-body">
+          <div class="quick-title">项目工坊</div>
+          <div class="quick-meta">动手实战，创作作品</div>
+        </div>
+        <span class="quick-arrow">→</span>
+      </div>
+      <div class="quick-item plan" @click="router.push('/study-plan')">
+        <span class="quick-icon">🤖</span>
+        <div class="quick-body">
+          <div class="quick-title">AI 学习计划</div>
+          <div class="quick-meta">定制你的学习路线</div>
+        </div>
+        <span class="quick-arrow">→</span>
+      </div>
     </div>
 
     <!-- 推荐练习 -->
@@ -362,7 +378,7 @@ const CIRC = 2 * Math.PI * R
 /* 今日快捷入口 */
 .quick-strip {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 28px;
 }
@@ -384,6 +400,10 @@ const CIRC = 2 * Math.PI * R
 .quick-item.report:hover { border-color: #10b981; }
 .quick-item.badge { border-color: #fcd34d; }
 .quick-item.badge:hover { border-color: #f59e0b; }
+.quick-item.project { border-color: #fb923c; }
+.quick-item.project:hover { border-color: #ea580c; }
+.quick-item.plan { border-color: #818cf8; }
+.quick-item.plan:hover { border-color: #4f46e5; }
 .quick-icon { font-size: 26px; flex-shrink: 0; }
 .quick-body { flex: 1; min-width: 0; }
 .quick-title { font-size: 14px; font-weight: 800; }

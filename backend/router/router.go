@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler, exam *handler.ExamHandler, leaderboard *handler.LeaderboardHandler, cert *handler.CertificateHandler, skill *handler.SkillHandler, analytics *handler.AnalyticsHandler, achievement *handler.AchievementHandler, weekly *handler.WeeklyReportHandler) *gin.Engine {
+func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler, exam *handler.ExamHandler, leaderboard *handler.LeaderboardHandler, cert *handler.CertificateHandler, skill *handler.SkillHandler, analytics *handler.AnalyticsHandler, achievement *handler.AchievementHandler, weekly *handler.WeeklyReportHandler, project *handler.ProjectHandler, portfolio *handler.PortfolioHandler, prediction *handler.PredictionHandler, studyPlan *handler.StudyPlanHandler) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -28,6 +28,9 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 		api.POST("/auth/register", auth.Register)
 		api.POST("/auth/login", auth.Login)
 		api.POST("/certificates/verify", cert.Verify)
+
+		// 公开能力档案（U10）
+		api.GET("/me/:username", portfolio.Get)
 
 		// 管理端：学习漏斗（需 X-Admin-Token）
 		api.GET("/admin/funnel", analytics.Funnel)
@@ -72,12 +75,28 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 			// 学习周报（U13）
 			authed.GET("/users/me/weekly-report", weekly.Get)
 
+			// 项目实战工坊（U9）
+			authed.GET("/projects/templates", project.Templates)
+			authed.GET("/projects", project.List)
+			authed.POST("/projects", project.Create)
+			authed.GET("/projects/:id", project.Get)
+			authed.PUT("/projects/:id/files", project.SaveFiles)
+			authed.POST("/projects/:id/run", project.Run)
+			authed.POST("/projects/:id/complete", project.Complete)
+			authed.DELETE("/projects/:id", project.Delete)
+
 			// 考试（单元考试 / 认证考试）
 			authed.POST("/units/:id/exam", exam.StartUnitExam)
 			authed.POST("/exams/:id/submit", exam.SubmitExam)
 			authed.GET("/exams/:id/report", exam.GetReport)
 			authed.POST("/courses/:id/cert-exam", exam.StartCertExam)
 			authed.GET("/courses/:id/cert-status", exam.CertStatus)
+
+			// 分数预测 + 考试日历（U7）
+			authed.GET("/courses/:id/prediction", prediction.Predict)
+
+			// AI 学习计划（U5）
+			authed.POST("/study-plan/generate", studyPlan.Generate)
 
 			// 排行榜
 			authed.GET("/leaderboard", leaderboard.Weekly)

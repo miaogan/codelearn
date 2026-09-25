@@ -132,6 +132,9 @@ function logout() {
       <router-link to="/achievements" class="btn-secondary">🏆 成就</router-link>
       <router-link to="/srs-reviews" class="btn-secondary">🧠 复习</router-link>
       <router-link to="/weekly-report" class="btn-secondary">📊 周报</router-link>
+      <router-link to="/projects" class="btn-secondary">🛠️ 项目工坊</router-link>
+      <router-link to="/portfolio" class="btn-secondary">📇 能力档案</router-link>
+      <router-link to="/study-plan" class="btn-secondary">🤖 学习计划</router-link>
       <router-link to="/leaderboard" class="btn-secondary">排行榜</router-link>
       <router-link to="/certificates" class="btn-secondary">🎖️ 我的证书</router-link>
       <router-link to="/feedback" class="btn-secondary">📮 问题反馈</router-link>

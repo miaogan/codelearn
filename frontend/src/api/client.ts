@@ -6,6 +6,7 @@ import type {
   UserStats, RunResult, JudgeResult, SubmitResult, WrongExerciseItem, ExamResult,
   Exam, ExamReport, LeaderboardEntry, CalendarDay, Certificate, CertStatus,
   SkillMap, ReviewRecommendation, SRSReviewItem, AchievementSummary, WeeklyReport,
+  Project, ProjectFile, ProjectTemplate, Portfolio, ExamPrediction, StudyPlan,
 } from '@/types'
 
 const api = axios.create({
@@ -175,6 +176,34 @@ export const achievementApi = {
 
 export const weeklyReportApi = {
   get: () => api.get<WeeklyReport>('/users/me/weekly-report'),
+}
+
+// ===== Sprint 6 第二批：项目工坊 / 能力档案 / 分数预测 / AI 学习计划 =====
+
+export const projectApi = {
+  templates: () => api.get<{ templates: ProjectTemplate[] }>('/projects/templates'),
+  list: () => api.get<{ projects: Project[] }>('/projects'),
+  get: (id: number) => api.get<{ project: Project; files: ProjectFile[] }>(`/projects/${id}`),
+  create: (data: { course_id?: number; title?: string; description?: string; language?: string; main_file?: string }) =>
+    api.post<Project>('/projects', data),
+  saveFiles: (id: number, mainFile: string, files: ProjectFile[]) =>
+    api.put<{ message: string }>(`/projects/${id}/files`, { main_file: mainFile, files }),
+  run: (id: number) => api.post<RunResult>(`/projects/${id}/run`),
+  complete: (id: number) => api.post<{ project: Project; message: string }>(`/projects/${id}/complete`),
+  remove: (id: number) => api.delete<{ message: string }>(`/projects/${id}`),
+}
+
+export const portfolioApi = {
+  get: (username: string) => api.get<Portfolio>(`/me/${username}`),
+}
+
+export const predictionApi = {
+  get: (courseId: number) => api.get<ExamPrediction>(`/courses/${courseId}/prediction`),
+}
+
+export const studyPlanApi = {
+  generate: (data: { goal?: string; language?: string; weeks?: number }) =>
+    api.post<StudyPlan>('/study-plan/generate', data),
 }
 
 export default api

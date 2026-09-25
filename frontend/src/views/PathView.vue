@@ -140,6 +140,10 @@ function certLevelText(level?: string) {
         <span class="btn-icon">🤖</span>
         <span>AI 模拟考试</span>
       </button>
+      <button class="btn-predict" @click="router.push(`/course/${route.params.id}/prediction`)">
+        <span class="btn-icon">🎯</span>
+        <span>考试预测</span>
+      </button>
       <button class="btn-skill" @click="router.push(`/course/${route.params.id}/skill`)">
         <span class="btn-icon">🧠</span>
         <span>能力图谱</span>
@@ -344,7 +348,7 @@ function certLevelText(level?: string) {
   margin-top: 24px;
 }
 
-.btn-exam, .btn-skill, .btn-wrong {
+.btn-exam, .btn-skill, .btn-wrong, .btn-predict {
   flex: 1;
   display: flex;
   align-items: center;
@@ -377,6 +381,15 @@ function certLevelText(level?: string) {
 .btn-skill:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #047857; }
 .btn-skill:active { transform: translateY(2px); box-shadow: 0 2px 0 #047857; }
 
+.btn-predict {
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: white;
+  box-shadow: 0 4px 0 #c2410c;
+}
+
+.btn-predict:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #c2410c; }
+.btn-predict:active { transform: translateY(2px); box-shadow: 0 2px 0 #c2410c; }
+
 .btn-wrong {
   background: white;
   color: var(--text);
@@ -389,4 +402,9 @@ function certLevelText(level?: string) {
 
 .btn-icon { font-size: 20px; }
 .loading { text-align: center; padding: 40px; color: var(--text-light); }
+
+@media (max-width: 640px) {
+  .action-bar { flex-wrap: wrap; }
+  .action-bar button { min-width: calc(50% - 6px); flex: 1 1 auto; }
+}
 </style>

@@ -325,3 +325,105 @@ export interface WeeklyReport {
   summary: string
   advice: string
 }
+
+// ===== Sprint 6 第二批：项目工坊 / 能力档案 / 分数预测 / AI 学习计划 =====
+
+export interface Project {
+  id: number
+  user_id: number
+  course_id: number
+  course_title: string
+  title: string
+  description: string
+  language: string
+  main_file: string
+  status: string
+  completed_at?: string
+  run_count: number
+  last_run_output: string
+  last_run_error: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectFile {
+  id: number
+  project_id: number
+  name: string
+  content: string
+  order: number
+}
+
+export interface ProjectTemplate {
+  language: string
+  title: string
+  files: { name: string; content: string }[]
+}
+
+export interface PortfolioCourse {
+  course_id: number
+  course_title: string
+  language: string
+  emoji: string
+  units_total: number
+  units_passed: number
+  mastery: number
+  certified: boolean
+  cert_level?: string
+  cert_score?: number
+  cert_no?: string
+  project_count: number
+}
+
+export interface Portfolio {
+  username: string
+  xp: number
+  streak_days: number
+  title_name: string
+  title_icon: string
+  title_level: number
+  badge_count: number
+  courses: PortfolioCourse[]
+  projects: Project[]
+}
+
+export interface PredictionFactor {
+  label: string
+  score: number
+  weight: number
+  detail: string
+}
+
+export interface PrepTask {
+  title: string
+  type: string
+  target_id?: number
+  reason: string
+}
+
+export interface ExamPrediction {
+  course_id: number
+  course_title: string
+  probability: number
+  level: string
+  eligible: boolean
+  units_passed: number
+  units_total: number
+  factors: PredictionFactor[]
+  advice: string
+  prep_tasks: PrepTask[]
+}
+
+export interface PlanWeek {
+  week: number
+  focus: string
+  tasks: string[]
+}
+
+export interface StudyPlan {
+  goal: string
+  language: string
+  total_weeks: number
+  weeks: PlanWeek[]
+  summary: string
+}

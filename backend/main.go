@@ -34,6 +34,7 @@ func main() {
 		&model.ExamSubmission{}, &model.Certificate{},
 		&model.AnalyticsEvent{}, &model.UserFeedback{},
 		&model.Achievement{},
+		&model.Project{}, &model.ProjectFile{},
 	); err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 	}
@@ -52,6 +53,11 @@ func main() {
 	srsSvc := service.NewSRSReviewService(repo)
 	achievementSvc := service.NewAchievementService(repo)
 	weeklySvc := service.NewWeeklyReportService(repo)
+	projectSvc := service.NewProjectService(repo)
+	portfolioSvc := service.NewPortfolioService(repo)
+	predictionSvc := service.NewPredictionService(repo)
+	planAdvisor := eino.NewPlanAdvisor(cfg)
+	studyPlanSvc := service.NewStudyPlanService(repo, planAdvisor)
 	examSvc := service.NewExamService(repo)
 	leaderboardSvc := service.NewLeaderboardService(repo)
 	certSvc := service.NewCertificateService(repo)
@@ -81,9 +87,13 @@ func main() {
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc, cfg.AdminToken)
 	achievementHandler := handler.NewAchievementHandler(achievementSvc)
 	weeklyHandler := handler.NewWeeklyReportHandler(weeklySvc)
+	projectHandler := handler.NewProjectHandler(projectSvc, achievementSvc)
+	portfolioHandler := handler.NewPortfolioHandler(portfolioSvc)
+	predictionHandler := handler.NewPredictionHandler(predictionSvc)
+	studyPlanHandler := handler.NewStudyPlanHandler(studyPlanSvc)
 
 	// 初始化路由
-	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler, skillHandler, analyticsHandler, achievementHandler, weeklyHandler)
+	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler, skillHandler, analyticsHandler, achievementHandler, weeklyHandler, projectHandler, portfolioHandler, predictionHandler, studyPlanHandler)
 
 	// 种子数据
 	if err := seedData(repo); err != nil {

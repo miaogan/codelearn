@@ -195,3 +195,33 @@ type UserFeedback struct {
 	Status    string    `gorm:"size:20;default:open" json:"status"` // open / resolved
 	CreatedAt time.Time `json:"created_at"`
 }
+
+// Project 项目实战工坊（U9）：多文件项目，绑定课程，完成可关联能力认证
+type Project struct {
+	ID            uint       `gorm:"primaryKey" json:"id"`
+	UserID        uint       `gorm:"index;not null" json:"user_id"`
+	CourseID      uint       `gorm:"index;not null" json:"course_id"`
+	CourseTitle   string     `gorm:"size:200" json:"course_title"`
+	Title         string     `gorm:"size:200;not null" json:"title"`
+	Description   string     `gorm:"type:text" json:"description"`
+	Language      string     `gorm:"size:20;not null;default:python" json:"language"`
+	MainFile      string     `gorm:"size:100;default:main.py" json:"main_file"`
+	Status        string     `gorm:"size:20;default:in_progress" json:"status"` // in_progress / completed
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	RunCount      int        `gorm:"default:0" json:"run_count"`
+	LastRunOutput string     `gorm:"type:text" json:"last_run_output,omitempty"`
+	LastRunError  string     `gorm:"type:text" json:"last_run_error,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+// ProjectFile 项目文件
+type ProjectFile struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	ProjectID uint      `gorm:"uniqueIndex:idx_project_name;not null" json:"project_id"`
+	Name      string    `gorm:"size:100;uniqueIndex:idx_project_name;not null" json:"name"`
+	Content   string    `gorm:"type:text" json:"content"`
+	Order     int       `gorm:"default:0" json:"order"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}

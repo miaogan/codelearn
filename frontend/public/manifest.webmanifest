@@ -1,0 +1,20 @@
+{
+  "name": "CodeLearn 编程学习",
+  "short_name": "CodeLearn",
+  "description": "成人零基础自学编程平台：日常学习、单元考试、能力认证一站式完成",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#4a89ff",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

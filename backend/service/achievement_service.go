@@ -32,6 +32,8 @@ var badgeDefs = map[string]badgeDef{
 	"first_cert":      {code: "first_cert", title: "能力认证", icon: "🎖️", description: "首次获得能力认证证书"},
 	"practice_50":     {code: "practice_50", title: "勤学苦练", icon: "✏️", description: "累计练习答对 50 题"},
 	"practice_200":    {code: "practice_200", title: "千锤百炼", icon: "🚀", description: "累计练习答对 200 题"},
+	"first_project":   {code: "first_project", title: "项目实战", icon: "🛠️", description: "完成第一个实战项目"},
+	"project_3":       {code: "project_3", title: "项目达人", icon: "🏗️", description: "完成 3 个实战项目"},
 }
 
 // titleLevels 段位称号（按 XP 从低到高）
@@ -127,6 +129,22 @@ func (s *AchievementService) OnCertIssued(userID uint) {
 // OnPracticeCorrect 练习答对事件
 func (s *AchievementService) OnPracticeCorrect(userID uint) {
 	s.Evaluate(userID)
+}
+
+// OnProjectCompleted 项目完成事件
+func (s *AchievementService) OnProjectCompleted(userID uint) {
+	s.Unlock(userID, "first_project")
+	if ps, err := s.repo.ListProjectsByUser(userID); err == nil {
+		done := 0
+		for _, p := range ps {
+			if p.Status == "completed" {
+				done++
+			}
+		}
+		if done >= 3 {
+			s.Unlock(userID, "project_3")
+		}
+	}
 }
 
 // AchievementDTO 徽章输出

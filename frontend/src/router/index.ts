@@ -33,6 +33,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/course/:id/prediction',
+      name: 'prediction',
+      component: () => import('@/views/PredictionView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/lesson/:id',
       name: 'lesson',
       component: () => import('@/views/LessonView.vue'),
@@ -136,6 +142,29 @@ const router = createRouter({
       path: '/weekly-report',
       name: 'weekly-report',
       component: () => import('@/views/WeeklyReportView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/projects',
+      name: 'projects',
+      component: () => import('@/views/ProjectWorkshopView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/portfolio',
+      name: 'portfolio',
+      component: () => import('@/views/PortfolioView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/portfolio/:username',
+      name: 'portfolio-shared',
+      component: () => import('@/views/PortfolioView.vue'),
+    },
+    {
+      path: '/study-plan',
+      name: 'study-plan',
+      component: () => import('@/views/StudyPlanView.vue'),
       meta: { requiresAuth: true },
     },
   ],

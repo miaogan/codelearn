@@ -157,6 +157,13 @@ func (r *Repository) CreateSubmission(s *model.Submission) error {
 	return r.db.Create(s).Error
 }
 
+// AllSubmissionsByUser 用户全部练习提交
+func (r *Repository) AllSubmissionsByUser(userID uint) ([]model.Submission, error) {
+	var subs []model.Submission
+	err := r.db.Where("user_id = ?", userID).Find(&subs).Error
+	return subs, err
+}
+
 func (r *Repository) CountTodaySubmissions(userID uint) (int64, error) {
 	var count int64
 	now := time.Now()
@@ -576,4 +583,55 @@ func (r *Repository) AnalyticsFunnel(since time.Time) ([]AnalyticsFunnelRow, err
 
 func (r *Repository) CreateFeedback(f *model.UserFeedback) error {
 	return r.db.Create(f).Error
+}
+
+// ===== 项目实战工坊（U9） =====
+
+func (r *Repository) CreateProject(p *model.Project) error {
+	return r.db.Create(p).Error
+}
+
+func (r *Repository) GetProject(userID, projectID uint) (*model.Project, error) {
+	var p model.Project
+	err := r.db.Where("user_id = ? AND id = ?", userID, projectID).First(&p).Error
+	return &p, err
+}
+
+func (r *Repository) ListProjectsByUser(userID uint) ([]model.Project, error) {
+	var ps []model.Project
+	err := r.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&ps).Error
+	return ps, err
+}
+
+func (r *Repository) UpdateProject(p *model.Project) error {
+	return r.db.Save(p).Error
+}
+
+func (r *Repository) DeleteProject(userID, projectID uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("project_id = ?", projectID).Delete(&model.ProjectFile{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("user_id = ? AND id = ?", userID, projectID).Delete(&model.Project{}).Error
+	})
+}
+
+func (r *Repository) ListProjectFiles(projectID uint) ([]model.ProjectFile, error) {
+	var fs []model.ProjectFile
+	err := r.db.Where("project_id = ?", projectID).Order("\"order\" ASC").Find(&fs).Error
+	return fs, err
+}
+
+func (r *Repository) ReplaceProjectFiles(projectID uint, files []model.ProjectFile) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("project_id = ?", projectID).Delete(&model.ProjectFile{}).Error; err != nil {
+			return err
+		}
+		if len(files) > 0 {
+			if err := tx.Create(&files).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
