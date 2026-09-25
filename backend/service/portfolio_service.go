@@ -46,18 +46,18 @@ type PortfolioProject struct {
 
 // Portfolio 公开能力档案
 type Portfolio struct {
-	Username     string              `json:"username"`
-	XP           int                 `json:"xp"`
-	StreakDays   int                 `json:"streak_days"`
-	TitleName    string              `json:"title_name"`
-	TitleIcon    string              `json:"title_icon"`
-	TitleLevel   int                 `json:"title_level"`
-	BadgeCount   int                 `json:"badge_count"`
-	Courses      []PortfolioCourse   `json:"courses"`
-	Projects     []PortfolioProject  `json:"projects"`
+	Username   string             `json:"username"`
+	XP         int                `json:"xp"`
+	StreakDays int                `json:"streak_days"`
+	TitleName  string             `json:"title_name"`
+	TitleIcon  string             `json:"title_icon"`
+	TitleLevel int                `json:"title_level"`
+	BadgeCount int                `json:"badge_count"`
+	Courses    []PortfolioCourse  `json:"courses"`
+	Projects   []PortfolioProject `json:"projects"`
 }
 
-// Get 生成用户公开档案（不暴露隐私信息）
+// Get 生成用户公开档案（不暴露隐私信息）。一次性批量加载单元/考试/提交/证书，避免按课程逐次查询（N+1）。
 func (s *PortfolioService) Get(username string) (*Portfolio, error) {
 	user, err := s.repo.GetUserByUsername(username)
 	if err != nil {
@@ -67,6 +67,31 @@ func (s *PortfolioService) Get(username string) (*Portfolio, error) {
 	courses, _ := s.repo.ListCourses()
 	badges, _ := s.repo.ListAchievements(user.ID)
 	projects, _ := s.repo.ListProjectsByUser(user.ID)
+	certs, _ := s.repo.ListCertificatesByUser(user.ID)
+	units, _ := s.repo.ListAllUnits()
+	allSubs, _ := s.repo.ListExamSubmissionsByUser(user.ID)
+
+	// 组装内存索引
+	unitsByCourse := map[uint][]model.Unit{}
+	allUnitIDs := make([]uint, 0, len(units))
+	for _, u := range units {
+		unitsByCourse[u.CourseID] = append(unitsByCourse[u.CourseID], u)
+		allUnitIDs = append(allUnitIDs, u.ID)
+	}
+	exams, _ := s.repo.ListExamsByUnitIDs(allUnitIDs)
+	examsByUnit := map[uint][]model.Exam{}
+	for _, e := range exams {
+		examsByUnit[e.UnitID] = append(examsByUnit[e.UnitID], e)
+	}
+	latestByExam := map[uint]*model.ExamSubmission{}
+	for i := range allSubs {
+		latestByExam[allSubs[i].ExamID] = &allSubs[i] // 按时间正序，后写覆盖即为最近一次
+	}
+	certByCourse := map[uint]*model.Certificate{}
+	for i := range certs {
+		certByCourse[certs[i].CourseID] = &certs[i]
+	}
+
 	name, icon, level := TitleForXP(user.XP)
 
 	pf := &Portfolio{
@@ -88,17 +113,17 @@ func (s *PortfolioService) Get(username string) (*Portfolio, error) {
 			Language:    c.Language,
 			Emoji:       c.Emoji,
 		}
-		units, _ := s.repo.ListUnitsByCourse(c.ID)
-		item.UnitsTotal = len(units)
+		cunits := unitsByCourse[c.ID]
+		item.UnitsTotal = len(cunits)
 		passed := 0
 		examTotal := 0
 		examCorrect := 0
-		for _, u := range units {
+		for _, u := range cunits {
 			examTotal++
-			if ok := s.courseExamPassed(user.ID, u.ID); ok {
+			if s.courseExamPassed(examsByUnit[u.ID], latestByExam) {
 				passed++
 			}
-			if acc, err := s.unitExamAccuracy(user.ID, u.ID); err == nil {
+			if acc, ok := s.unitExamAccuracy(examsByUnit[u.ID], latestByExam); ok {
 				examCorrect += acc
 			}
 		}
@@ -107,14 +132,11 @@ func (s *PortfolioService) Get(username string) (*Portfolio, error) {
 		mastery := 0
 		if examTotal > 0 {
 			unitRate := passed * 100 / examTotal
-			avgAcc := 0
-			if examTotal > 0 {
-				avgAcc = examCorrect / examTotal
-			}
+			avgAcc := examCorrect / examTotal
 			mastery = unitRate*70/100 + avgAcc*30/100
 		}
 		item.Mastery = mastery
-		if cert, err := s.repo.GetCertificate(user.ID, c.ID); err == nil {
+		if cert, ok := certByCourse[c.ID]; ok {
 			item.Certified = true
 			item.CertLevel = cert.Level
 			item.CertScore = cert.Score
@@ -148,36 +170,28 @@ func trimProjects(projects []model.Project) []PortfolioProject {
 	return out
 }
 
-// courseExamPassed 判断某用户是否通过某单元考试
-func (s *PortfolioService) courseExamPassed(userID, unitID uint) bool {
-	exams, err := s.repo.ListExamsByUnit(unitID)
-	if err != nil {
-		return false
-	}
+// courseExamPassed 判断某用户是否通过某单元考试（基于预加载索引）
+func (s *PortfolioService) courseExamPassed(exams []model.Exam, latestByExam map[uint]*model.ExamSubmission) bool {
 	for _, e := range exams {
-		if subs, err := s.repo.ListExamSubmissions(userID, e.ID); err == nil {
-			for _, sub := range subs {
-				if sub.Passed {
-					return true
-				}
-			}
+		if sub, ok := latestByExam[e.ID]; ok && sub.Passed {
+			return true
 		}
 	}
 	return false
 }
 
-// unitExamAccuracy 单元考试平均正确率（最近一次提交）
-func (s *PortfolioService) unitExamAccuracy(userID, unitID uint) (int, error) {
-	exams, err := s.repo.ListExamsByUnit(unitID)
-	if err != nil || len(exams) == 0 {
-		return 0, err
+// unitExamAccuracy 单元考试平均正确率（该单元各考试实例中最近一次提交，基于预加载索引）
+func (s *PortfolioService) unitExamAccuracy(exams []model.Exam, latestByExam map[uint]*model.ExamSubmission) (int, bool) {
+	var last *model.ExamSubmission
+	for _, e := range exams {
+		if sub, ok := latestByExam[e.ID]; ok {
+			if last == nil || sub.CreatedAt.After(last.CreatedAt) {
+				last = sub
+			}
+		}
 	}
-	last, err := s.repo.GetLatestExamSubmission(userID, exams[0].ID)
-	if err != nil {
-		return 0, err
+	if last == nil || last.TotalCount == 0 {
+		return 0, false
 	}
-	if last.TotalCount == 0 {
-		return 0, nil
-	}
-	return last.CorrectCount * 100 / last.TotalCount, nil
+	return last.CorrectCount * 100 / last.TotalCount, true
 }

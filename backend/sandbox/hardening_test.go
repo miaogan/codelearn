@@ -59,6 +59,46 @@ func TestRejectMalicious_TooLong(t *testing.T) {
 	}
 }
 
+func TestRejectMaliciousProject_AllowsFileIO(t *testing.T) {
+	allowed := []string{
+		`os.WriteFile("out.txt", []byte("x"), 0644)`,
+		`os.Create("data.txt")`,
+		`os.OpenFile("log.txt", os.O_APPEND, 0644)`,
+		`os.Remove("tmp.txt")`,
+		`os.RemoveAll("build")`,
+		`os.MkdirAll("dist", 0755)`,
+		`open("data.txt", "w")`,
+		`os.unlink("tmp.txt")`,
+		`os.rmdir("dir")`,
+	}
+	for _, code := range allowed {
+		if msg := rejectMaliciousProject(code); msg != "" {
+			t.Errorf("project file I/O rejected: %s (%s)", code, msg)
+		}
+	}
+}
+
+func TestRejectMaliciousProject_StillBlocksDangerous(t *testing.T) {
+	blocked := []string{
+		`import "os/exec"`,
+		`import "net/http"`,
+		`import "syscall"`,
+		`import "unsafe"`,
+		`exec.Command("ls")`,
+		`import subprocess`,
+		`os.system("ls")`,
+		`socket.socket()`,
+		`import requests`,
+		`__import__('os')`,
+		`eval("2+2")`,
+	}
+	for _, code := range blocked {
+		if msg := rejectMaliciousProject(code); msg == "" {
+			t.Errorf("expected rejection in project mode: %s", code)
+		}
+	}
+}
+
 func TestCircuitBreaker_OpensAndBlocks(t *testing.T) {
 	b := newCircuitBreaker()
 	b.openFor = 10 * time.Second

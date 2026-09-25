@@ -68,6 +68,13 @@ func (r *Repository) ListUnitsByCourse(courseID uint) ([]model.Unit, error) {
 	return units, err
 }
 
+// ListAllUnits 全量单元（用于档案/聚合场景，避免按课程逐次查询的 N+1）
+func (r *Repository) ListAllUnits() ([]model.Unit, error) {
+	var units []model.Unit
+	err := r.db.Order("\"order\" ASC").Find(&units).Error
+	return units, err
+}
+
 func (r *Repository) GetUnit(id uint) (*model.Unit, error) {
 	var u model.Unit
 	err := r.db.First(&u, id).Error
@@ -506,6 +513,23 @@ func (r *Repository) GetLatestExamSubmission(userID, examID uint) (*model.ExamSu
 func (r *Repository) ListExamSubmissions(userID, examID uint) ([]model.ExamSubmission, error) {
 	var list []model.ExamSubmission
 	err := r.db.Where("user_id = ? AND exam_id = ?", userID, examID).Order("created_at ASC").Find(&list).Error
+	return list, err
+}
+
+// ListExamsByUnitIDs 批量获取多个单元下的考试（避免逐单元查询的 N+1）
+func (r *Repository) ListExamsByUnitIDs(unitIDs []uint) ([]model.Exam, error) {
+	if len(unitIDs) == 0 {
+		return []model.Exam{}, nil
+	}
+	var list []model.Exam
+	err := r.db.Where("unit_id IN ?", unitIDs).Find(&list).Error
+	return list, err
+}
+
+// ListExamSubmissionsByUser 获取用户全部考试提交（按时间正序，用于批量取最近一次）
+func (r *Repository) ListExamSubmissionsByUser(userID uint) ([]model.ExamSubmission, error) {
+	var list []model.ExamSubmission
+	err := r.db.Where("user_id = ?", userID).Order("created_at ASC").Find(&list).Error
 	return list, err
 }
 

@@ -19,7 +19,7 @@ func NewPredictionService(repo *repository.Repository) *PredictionService {
 // PredictionFactor 预测因子
 type PredictionFactor struct {
 	Label  string `json:"label"`
-	Score  int    `json:"score"` // 0-100
+	Score  int    `json:"score"`  // 0-100
 	Weight int    `json:"weight"` // 权重（百分数）
 	Detail string `json:"detail"`
 }
@@ -37,7 +37,7 @@ type ExamPrediction struct {
 	CourseID    uint               `json:"course_id"`
 	CourseTitle string             `json:"course_title"`
 	Probability int                `json:"probability"` // 0-100
-	Level       string             `json:"level"`      // low / medium / high
+	Level       string             `json:"level"`       // low / medium / high
 	Eligible    bool               `json:"eligible"`
 	UnitsPassed int                `json:"units_passed"`
 	UnitsTotal  int                `json:"units_total"`
@@ -56,7 +56,8 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 	passed := 0
 	totalLessons := 0
 	completedLessons := 0
-	var examScoreSum, examCount int
+	examScoreSum := 0
+	examUnits := 0
 	for _, u := range units {
 		lessons, _ := s.repo.ListLessonsByUnit(u.ID)
 		for _, l := range lessons {
@@ -65,10 +66,13 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 				completedLessons++
 			}
 		}
-		if ok, score := s.unitExamPassedAndScore(userID, u.ID); ok {
-			passed++
+		ok, score, attempted := s.unitExamLatest(userID, u.ID)
+		if attempted {
 			examScoreSum += score
-			examCount++
+			examUnits++
+		}
+		if ok {
+			passed++
 		}
 	}
 
@@ -92,10 +96,10 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 		masteryRate = masteredWrong * 100 / len(wrongs)
 	}
 
-	// 单元考试平均分
+	// 单元考试平均分（含未通过尝试的最近一次成绩，避免只看通过场次的乐观偏差）
 	avgExam := 0
-	if examCount > 0 {
-		avgExam = examScoreSum / examCount
+	if examUnits > 0 {
+		avgExam = examScoreSum / examUnits
 	}
 
 	coverage := 0
@@ -106,7 +110,7 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 	factors := []PredictionFactor{
 		{Label: "练习正确率", Score: accuracy, Weight: 35, Detail: fmt.Sprintf("%d 次作答，正确率 %d%%", totalSub, accuracy)},
 		{Label: "错题掌握率", Score: masteryRate, Weight: 20, Detail: fmt.Sprintf("%d 道错题，已掌握 %d%%", len(wrongs), masteryRate)},
-		{Label: "单元考试成绩", Score: avgExam, Weight: 30, Detail: fmt.Sprintf("%d 场通过考试，平均 %d 分", examCount, avgExam)},
+		{Label: "单元考试成绩", Score: avgExam, Weight: 30, Detail: fmt.Sprintf("%d 个单元有考试记录，平均 %d 分", examUnits, avgExam)},
 		{Label: "课时完成度", Score: coverage, Weight: 15, Detail: fmt.Sprintf("%d/%d 课时已完成", completedLessons, totalLessons)},
 	}
 
@@ -114,8 +118,9 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 	for _, f := range factors {
 		prob += f.Score * f.Weight / 100
 	}
-	if prob == 0 {
-		prob = 50 // 无数据时中性默认
+	hasData := totalSub > 0 || len(wrongs) > 0 || examUnits > 0 || completedLessons > 0
+	if prob == 0 && !hasData {
+		prob = 50 // 完全无数据时中性默认；有数据但概率为 0 则如实反映
 	}
 	level := "medium"
 	if prob >= 75 {
@@ -150,22 +155,31 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 	}, nil
 }
 
-// unitExamPassedAndScore 返回用户是否通过某单元考试及其最近成绩
-func (s *PredictionService) unitExamPassedAndScore(userID, unitID uint) (bool, int) {
+// unitExamLatest 返回用户在某个单元考试上的最近表现：
+// 通过（任一考试实例最近一次提交通过，与认证资格判定一致）、最近分数、是否有过考试尝试。
+// 未考由 attempted=false 区分，避免虚增平均分。
+func (s *PredictionService) unitExamLatest(userID, unitID uint) (passed bool, score int, attempted bool) {
 	exams, err := s.repo.ListExamsByUnit(unitID)
-	if err != nil {
-		return false, 0
+	if err != nil || len(exams) == 0 {
+		return false, 0, false
 	}
+	var latest *model.ExamSubmission
 	for _, e := range exams {
-		if subs, err := s.repo.ListExamSubmissions(userID, e.ID); err == nil {
-			for _, sub := range subs {
-				if sub.Passed {
-					return true, sub.Score
-				}
-			}
+		sub, err := s.repo.GetLatestExamSubmission(userID, e.ID)
+		if err != nil {
+			continue
+		}
+		if latest == nil || sub.CreatedAt.After(latest.CreatedAt) {
+			latest = sub
+		}
+		if sub.Passed {
+			passed = true
 		}
 	}
-	return false, 0
+	if latest == nil {
+		return false, 0, false
+	}
+	return passed, latest.Score, true
 }
 
 // practiceAccuracy 练习正确率
@@ -188,7 +202,7 @@ func (s *PredictionService) buildPrepTasks(userID uint, units []model.Unit, pass
 	tasks := []PrepTask{}
 	if passed < total {
 		for _, u := range units {
-			if ok, _ := s.unitExamPassedAndScore(userID, u.ID); !ok {
+			if ok, _, _ := s.unitExamLatest(userID, u.ID); !ok {
 				tasks = append(tasks, PrepTask{
 					Title:    "通过单元考试：" + u.Title,
 					Type:     "exam",

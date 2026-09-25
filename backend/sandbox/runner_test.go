@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -258,4 +259,93 @@ func main() {}`
 			t.Errorf("should not wrap Python code")
 		}
 	})
+}
+
+func TestRunProject_PythonFileIO(t *testing.T) {
+	files := []ProjectFileInput{{
+		Name: "main.py",
+		Content: `with open("out.txt", "w") as f:
+    f.write("hello-file")
+with open("out.txt") as f:
+    print(f.read())`,
+	}}
+	result := RunProject("python", "main.py", files)
+
+	if result.Error != "" {
+		t.Fatalf("unexpected error: %s", result.Error)
+	}
+	if strings.TrimSpace(result.Output) != "hello-file" {
+		t.Errorf("expected 'hello-file', got %q", result.Output)
+	}
+}
+
+func TestRunProject_GoFileIO(t *testing.T) {
+	files := []ProjectFileInput{{
+		Name: "main.go",
+		Content: `package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	if err := os.WriteFile("out.txt", []byte("go-file"), 0644); err != nil {
+		fmt.Println("write err:", err)
+		return
+	}
+	b, err := os.ReadFile("out.txt")
+	if err != nil {
+		fmt.Println("read err:", err)
+		return
+	}
+	fmt.Println(string(b))
+}`,
+	}}
+	result := RunProject("go", "main.go", files)
+
+	if result.Error != "" {
+		t.Fatalf("unexpected error: %s", result.Error)
+	}
+	if strings.TrimSpace(result.Output) != "go-file" {
+		t.Errorf("expected 'go-file', got %q", result.Output)
+	}
+}
+
+func TestRunProject_RejectsNetwork(t *testing.T) {
+	files := []ProjectFileInput{{
+		Name: "main.go",
+		Content: `package main
+
+import "net/http"
+
+func main() {}`,
+	}}
+	result := RunProject("go", "main.go", files)
+
+	if result.Error == "" || !strings.Contains(result.Error, "已拦截") {
+		t.Errorf("expected network code rejected in project mode, got: %+v", result)
+	}
+}
+
+func TestRunProject_SystemDirWriteBlockedAsNobody(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("仅 root 降权场景验证")
+	}
+	files := []ProjectFileInput{{
+		Name: "main.py",
+		Content: `try:
+    open("/etc/pwned-project", "w").write("x")
+    print("ETC_WRITABLE")
+except PermissionError:
+    print("ETC_BLOCKED")`,
+	}}
+	result := RunProject("python", "main.py", files)
+
+	if result.Error != "" {
+		t.Fatalf("unexpected error: %s", result.Error)
+	}
+	if !strings.Contains(result.Output, "ETC_BLOCKED") {
+		t.Errorf("expected /etc write blocked for nobody, got output: %q", result.Output)
+	}
 }

@@ -14,30 +14,50 @@ import (
 
 const maxCodeLength = 20000
 
-// dangerousPatterns 危险代码特征黑名单（大小写不敏感子串匹配）
-var dangerousPatterns = []string{
+// alwaysDangerous 单文件与项目模式都必须拦截的危险特征：
+// 子进程/系统调用/网络，降权运行也无法阻止这些行为（nobody 仍可发起网络请求），需静态拦截。
+var alwaysDangerous = []string{
 	// Go
-	"os/exec", "syscall", "unsafe", "exec.command", "os.remove", "os.chmod",
-	"os.writefile", "os.create", "os.openfile", "net.", "crypto/", "plugin.",
-	"reflect", "go:linkname",
+	"os/exec", "syscall", "unsafe", "exec.command", "net.", "net/",
+	"crypto/", "plugin.", "go:linkname",
 	// Python
-	"subprocess", "os.system", "os.popen", "os.remove", "os.unlink", "os.rmdir",
-	"shutil.rmtree", "socket", "import requests", "urllib", "http.server",
-	"importlib", "eval(", "exec(", "__import__", "pickle.loads", "getattr",
-	"ctypes", "ftplib", "telnetlib", "smtplib", "marshal.loads",
+	"subprocess", "os.system", "os.popen", "socket", "import requests",
+	"requests.", "urllib", "http.server", "http.client", "importlib",
+	"eval(", "exec(", "__import__", "pickle.loads", "getattr", "ctypes",
+	"ftplib", "telnetlib", "smtplib", "marshal.loads",
 	// 通用
 	"rm -rf", "shutdown", "mkfs", "dd if=",
 }
 
-// rejectMalicious 静态检查代码是否含危险特征，返回拒绝原因；安全则返回空字符串
-func rejectMalicious(code string) string {
+// fileIOPatterns 仅在单文件模式（root 直接运行）额外拦截的文件操作特征。
+// 项目模式以 nobody 降权运行，这些操作无法越权写系统目录，故允许。
+var fileIOPatterns = []string{
+	"os.remove", "os.chmod", "os.writefile", "os.create", "os.openfile",
+	"os.unlink", "os.rmdir", "shutil.rmtree",
+}
+
+// rejectMalicious 单文件代码严格检查（含文件操作拦截）。
+func rejectMalicious(code string) string { return reject(code, false) }
+
+// rejectMaliciousProject 项目模式检查：允许文件 I/O（降权运行保证安全），
+// 但仍拦截网络/子进程/系统调用。
+func rejectMaliciousProject(code string) string { return reject(code, true) }
+
+func reject(code string, allowFileIO bool) string {
 	if len(code) > maxCodeLength {
 		return fmt.Sprintf("代码长度超过限制（%d 字符）", maxCodeLength)
 	}
 	lower := strings.ToLower(code)
-	for _, p := range dangerousPatterns {
+	for _, p := range alwaysDangerous {
 		if strings.Contains(lower, p) {
 			return fmt.Sprintf("检测到潜在危险代码（%s），已拦截", p)
+		}
+	}
+	if !allowFileIO {
+		for _, p := range fileIOPatterns {
+			if strings.Contains(lower, p) {
+				return fmt.Sprintf("检测到潜在危险代码（%s），已拦截", p)
+			}
 		}
 	}
 	return ""
@@ -109,12 +129,18 @@ func limitWrap(ctx context.Context, language string, argv []string) *exec.Cmd {
 	}
 	inner := strings.Join(quoted, " ")
 
-	limits := "ulimit -t 8; ulimit -f 8192; ulimit -u 64;"
-	cmd := exec.CommandContext(ctx, "bash", "-c", limits+" exec "+inner)
+	// Go 冷编译标准库会写大文件（构建缓存最大约 45MB），需放宽单文件大小上限；Python 保持较小值
+	fileLimit := uint64(8192) // 4MB（512 字节块）
 	if language == "go" {
-		cmd.Env = append(os.Environ(), "GOMEMLIMIT=256MiB")
-	} else {
-		cmd = exec.CommandContext(ctx, "bash", "-c", limits+" ulimit -v 262144; exec "+inner)
+		fileLimit = 262144 // 128MB
 	}
+	limits := fmt.Sprintf("ulimit -t 8; ulimit -f %d; ulimit -u 64;", fileLimit)
+	if language == "go" {
+		cmd := exec.CommandContext(ctx, "bash", "-c", limits+" exec "+inner)
+		cmd.Env = append(os.Environ(), "GOMEMLIMIT=256MiB")
+		return cmd
+	}
+	cmd := exec.CommandContext(ctx, "bash", "-c", limits+" ulimit -v 262144; exec "+inner)
+	cmd.Env = append(os.Environ(), "HOME=/nonexistent")
 	return cmd
 }
