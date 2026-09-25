@@ -69,6 +69,7 @@ func (h *CodeHandler) Judge(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID > 0 && result.AllPass {
 		h.progressSvc.RestoreHeart(userID)
+		h.progressSvc.RecordExerciseXP(userID)
 	}
 
 	c.JSON(http.StatusOK, result)

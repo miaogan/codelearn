@@ -34,6 +34,9 @@ onMounted(loadWrongCount)
         <div class="stat-item adaptive" title="自适应学习" @click="router.push('/adaptive')">
           <span class="icon">📊</span>
         </div>
+        <div class="stat-item leaderboard" title="排行榜" @click="router.push('/leaderboard')">
+          <span class="icon">🏆</span>
+        </div>
         <div class="stat-item streak" title="连续打卡">
           <span class="icon">🔥</span>
           <span class="value">{{ auth.stats.streak_days }}</span>
@@ -100,7 +103,7 @@ onMounted(loadWrongCount)
   color: var(--text);
 }
 
-.stat-item.ai-tutor, .stat-item.knowledge, .stat-item.adaptive {
+.stat-item.ai-tutor, .stat-item.knowledge, .stat-item.adaptive, .stat-item.leaderboard {
   cursor: pointer;
   font-size: 20px;
 }

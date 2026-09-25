@@ -27,6 +27,16 @@ function enterLesson(lesson: SkillTreeLesson) {
   }
 }
 
+function unitCompleted(unit: { lessons: SkillTreeLesson[] }): boolean {
+  return unit.lessons.length > 0 && unit.lessons.every((l) => l.completed)
+}
+
+function enterUnitExam(unit: { id: number; lessons: SkillTreeLesson[] }) {
+  if (unitCompleted(unit)) {
+    router.push(`/unit-exam/${unit.id}`)
+  }
+}
+
 function offsetClass(index: number) {
   const offsets = ['center', 'left', 'right']
   return offsets[index % 3]
@@ -67,6 +77,20 @@ function offsetClass(index: number) {
               <div class="node-label">{{ lesson.title }}</div>
             </div>
           </template>
+
+          <!-- 单元考试入口：完成全部课时后解锁 -->
+          <div class="connector"></div>
+          <div
+            class="lesson-node unit-exam-node"
+            :class="{ completed: unitCompleted(unit), locked: !unitCompleted(unit) }"
+            @click="enterUnitExam(unit)"
+          >
+            <div class="node-circle exam-circle" :style="{ '--node-color': unit.color }">
+              <span v-if="unitCompleted(unit)" class="icon">📝</span>
+              <span v-else class="lock">🔒</span>
+            </div>
+            <div class="node-label">单元考试</div>
+          </div>
         </div>
       </div>
     </div>
@@ -194,6 +218,18 @@ function offsetClass(index: number) {
   font-weight: 700;
   color: var(--text-light);
   text-align: center;
+}
+
+.unit-exam-node.completed .exam-circle {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border: 4px solid #4f46e5;
+  box-shadow: 0 4px 0 #4f46e5;
+  animation: exam-pulse 2s infinite;
+}
+@keyframes exam-pulse {
+  0%, 100% { box-shadow: 0 4px 0 #4f46e5; }
+  50% { box-shadow: 0 4px 0 #4f46e5, 0 0 0 6px rgba(99, 102, 241, 0.2); }
 }
 
 .back-btn { margin-top: 32px; width: 100%; }

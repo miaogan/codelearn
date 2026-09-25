@@ -38,3 +38,24 @@ func (h *ProgressHandler) ListProgress(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"progress": progress})
 }
+
+type dailyGoalReq struct {
+	Goal int `json:"goal" binding:"required"`
+}
+
+// UpdateDailyGoal 更新每日目标
+func (h *ProgressHandler) UpdateDailyGoal(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	var req dailyGoalReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数无效"})
+		return
+	}
+	goal, err := h.progressSvc.UpdateDailyGoal(userID, req.Goal)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新每日目标失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"daily_goal": goal})
+}

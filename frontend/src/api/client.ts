@@ -4,6 +4,7 @@ import router from '@/router'
 import type {
   User, Course, LearningPath, Lesson, Exercise,
   UserStats, RunResult, JudgeResult, SubmitResult, WrongExerciseItem, ExamResult,
+  Exam, ExamReport, LeaderboardEntry, CalendarDay, Certificate,
 } from '@/types'
 
 const api = axios.create({
@@ -73,6 +74,8 @@ export const codeApi = {
 export const userApi = {
   stats: () => api.get<UserStats>('/users/me/stats'),
   progress: () => api.get<{ progress: any[] }>('/users/me/progress'),
+  updateDailyGoal: (goal: number) =>
+    api.put<{ daily_goal: number }>('/users/me/daily-goal', { goal }),
 }
 
 export const wrongApi = {
@@ -90,6 +93,37 @@ export const adaptiveApi = {
     api.get('/adaptive/recommend', {
       params: { course_id: courseId, language },
     }),
+}
+
+// ===== 单元考试（Sprint 0 新增） =====
+
+export const examApi = {
+  startUnit: (unitId: number) =>
+    api.post<Exam>(`/units/${unitId}/exam`),
+  submit: (examId: number, answers: { question_id: number; exercise_id: number; answer: string }[], durationSec = 0) =>
+    api.post<ExamReport>(`/exams/${examId}/submit`, { answers, duration_sec: durationSec }),
+  report: (examId: number) =>
+    api.get<ExamReport>(`/exams/${examId}/report`),
+}
+
+// ===== 排行榜 / 学习日历（Sprint 0 新增） =====
+
+export const leaderboardApi = {
+  weekly: () =>
+    api.get<{ entries: LeaderboardEntry[]; me: LeaderboardEntry }>('/leaderboard'),
+  calendar: (month?: string) =>
+    api.get<{ year: number; month: number; days: CalendarDay[] }>('/users/me/calendar', {
+      params: month ? { month } : {},
+    }),
+}
+
+// ===== 能力认证证书（Sprint 0 新增） =====
+
+export const certificateApi = {
+  list: () =>
+    api.get<{ certificates: Certificate[] }>('/certificates'),
+  verify: (certNo: string) =>
+    api.post<{ valid: boolean; certificate?: Certificate; message?: string }>('/certificates/verify', { cert_no: certNo }),
 }
 
 export const tutorApi = {

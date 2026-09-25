@@ -135,3 +135,74 @@ export interface WrongExerciseItem {
   last_wrong_at: string
   reviewed_at?: string
 }
+
+// ===== 单元考试（Sprint 0 新增） =====
+
+export interface ExamQuestion {
+  id: number
+  exercise_id: number
+  order: number
+  type: string
+  question: string
+  options: string
+  code_template: string
+  difficulty: string
+}
+
+export interface Exam {
+  id: number
+  title: string
+  exam_type: string
+  duration_min: number
+  pass_score: number
+  questions: ExamQuestion[]
+}
+
+export interface ExamReportItem {
+  question_id: number
+  exercise_id: number
+  correct: boolean
+  user_answer: string
+  correct_answer: string
+  explanation: string
+}
+
+export interface ExamReport {
+  exam_id: number
+  score: number
+  correct_count: number
+  total_count: number
+  passed: boolean
+  pass_score: number
+  duration_sec: number
+  attempts: number
+  results: ExamReportItem[]
+}
+
+// ===== 排行榜 / 学习日历（Sprint 0 新增） =====
+
+export interface LeaderboardEntry {
+  rank: number
+  user_id: number
+  username: string
+  xp: number
+}
+
+export interface CalendarDay {
+  date: string
+  xp: number
+}
+
+// ===== 能力认证证书（Sprint 0 新增） =====
+
+export interface Certificate {
+  id: number
+  user_id: number
+  course_id: number
+  cert_no: string
+  level: string
+  score: number
+  course_title: string
+  user_name: string
+  issued_at: string
+}

@@ -24,9 +24,9 @@ func seedData(repo *repository.Repository) error {
 
 	// === Go 课程 ===
 	goUnits := []model.Unit{
-		{CourseID: courses[0].ID, Title: "基础语法", Description: "Go 语言的基本语法", Icon: "📚", Color: "#00ADD8", Order: 1},
-		{CourseID: courses[0].ID, Title: "控制流与函数", Description: "条件判断、循环和函数", Icon: "🔀", Color: "#00ADD8", Order: 2},
-		{CourseID: courses[0].ID, Title: "数据结构", Description: "数组、切片、映射和结构体", Icon: "🗂️", Color: "#00ADD8", Order: 3},
+		{CourseID: courses[0].ID, Title: "基础语法", Description: "Go 语言的基本语法", Icon: "📚", Color: "#00ADD8", Order: 1, ExamDurationMin: 15, ExamQuestionCount: 8},
+		{CourseID: courses[0].ID, Title: "控制流与函数", Description: "条件判断、循环和函数", Icon: "🔀", Color: "#00ADD8", Order: 2, ExamDurationMin: 15, ExamQuestionCount: 8},
+		{CourseID: courses[0].ID, Title: "数据结构", Description: "数组、切片、映射和结构体", Icon: "🗂️", Color: "#00ADD8", Order: 3, ExamDurationMin: 15, ExamQuestionCount: 8},
 	}
 	if err := repo.DB().Create(&goUnits).Error; err != nil {
 		return err
@@ -53,9 +53,9 @@ func seedData(repo *repository.Repository) error {
 
 	// === Python 课程 ===
 	pyUnits := []model.Unit{
-		{CourseID: courses[1].ID, Title: "基础语法", Description: "Python 基本语法", Icon: "📚", Color: "#3776AB", Order: 1},
-		{CourseID: courses[1].ID, Title: "控制流与函数", Description: "条件、循环和函数", Icon: "🔀", Color: "#3776AB", Order: 2},
-		{CourseID: courses[1].ID, Title: "数据结构", Description: "列表、字典、集合", Icon: "🗂️", Color: "#3776AB", Order: 3},
+		{CourseID: courses[1].ID, Title: "基础语法", Description: "Python 基本语法", Icon: "📚", Color: "#3776AB", Order: 1, ExamDurationMin: 15, ExamQuestionCount: 8},
+		{CourseID: courses[1].ID, Title: "控制流与函数", Description: "条件、循环和函数", Icon: "🔀", Color: "#3776AB", Order: 2, ExamDurationMin: 15, ExamQuestionCount: 8},
+		{CourseID: courses[1].ID, Title: "数据结构", Description: "列表、字典、集合", Icon: "🗂️", Color: "#3776AB", Order: 3, ExamDurationMin: 15, ExamQuestionCount: 8},
 	}
 	if err := repo.DB().Create(&pyUnits).Error; err != nil {
 		return err

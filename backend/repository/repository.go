@@ -74,8 +74,6 @@ func (r *Repository) GetUnit(id uint) (*model.Unit, error) {
 	return &u, err
 }
 
-// Lesson
-
 func (r *Repository) ListLessonsByUnit(unitID uint) ([]model.Lesson, error) {
 	var lessons []model.Lesson
 	err := r.db.Where("unit_id = ?", unitID).Order("\"order\" ASC").Find(&lessons).Error
@@ -255,4 +253,155 @@ func (r *Repository) SearchLessonsByKeyword(keyword string, limit int) []LessonS
 		Scan(&results)
 
 	return results
+}
+
+// ListExercisesByUnit 获取单元下所有课时包含的习题
+func (r *Repository) ListExercisesByUnit(unitID uint) ([]model.Exercise, error) {
+	var exercises []model.Exercise
+	err := r.db.Table("exercises").
+		Joins("JOIN lessons ON lessons.id = exercises.lesson_id").
+		Where("lessons.unit_id = ?", unitID).
+		Order("lessons.\"order\" ASC, exercises.\"order\" ASC").
+		Find(&exercises).Error
+	return exercises, err
+}
+
+func (r *Repository) GetCourseLanguage(courseID uint) (string, error) {
+	var c model.Course
+	err := r.db.Select("language").First(&c, courseID).Error
+	return c.Language, err
+}
+
+// XPEvent 排行榜与学习日历
+
+func (r *Repository) CreateXPEvent(e *model.XPEvent) error {
+	return r.db.Create(e).Error
+}
+
+func (r *Repository) CountXPEventsByReasonSince(userID uint, reason string, since time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.XPEvent{}).
+		Where("user_id = ? AND reason = ? AND created_at >= ?", userID, reason, since).
+		Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) SumXPBetween(userID uint, start, end time.Time) (int, error) {
+	var sum int64
+	err := r.db.Model(&model.XPEvent{}).
+		Where("user_id = ? AND created_at >= ? AND created_at < ?", userID, start, end).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&sum).Error
+	return int(sum), err
+}
+
+// LeaderboardRow 排行榜聚合行
+type LeaderboardRow struct {
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
+	XP       int    `json:"xp"`
+}
+
+func (r *Repository) WeeklyLeaderboard(since time.Time, limit int) ([]LeaderboardRow, error) {
+	var rows []LeaderboardRow
+	if limit <= 0 {
+		limit = 20
+	}
+	err := r.db.Table("xp_events").
+		Select("xp_events.user_id, users.username, SUM(xp_events.amount) as xp").
+		Joins("JOIN users ON users.id = xp_events.user_id").
+		Where("xp_events.created_at >= ?", since).
+		Group("xp_events.user_id, users.username").
+		Order("xp DESC").
+		Limit(limit).
+		Scan(&rows).Error
+	return rows, err
+}
+
+// CalendarDay 学习日历中的某一天
+type CalendarDay struct {
+	Date string `json:"date"`
+	XP   int    `json:"xp"`
+}
+
+func (r *Repository) CalendarDays(userID uint, start, end time.Time) ([]CalendarDay, error) {
+	var days []CalendarDay
+	err := r.db.Table("xp_events").
+		Select("date(created_at) as date, SUM(amount) as xp").
+		Where("user_id = ? AND created_at >= ? AND created_at < ?", userID, start, end).
+		Group("date(created_at)").
+		Order("date(created_at) ASC").
+		Scan(&days).Error
+	return days, err
+}
+
+// Exam 考试
+
+func (r *Repository) CreateExam(e *model.Exam) error {
+	return r.db.Create(e).Error
+}
+
+func (r *Repository) GetExam(id uint) (*model.Exam, error) {
+	var e model.Exam
+	err := r.db.First(&e, id).Error
+	return &e, err
+}
+
+func (r *Repository) CreateExamQuestions(qs []model.ExamQuestion) error {
+	if len(qs) == 0 {
+		return nil
+	}
+	return r.db.Create(&qs).Error
+}
+
+func (r *Repository) ListExamQuestions(examID uint) ([]model.ExamQuestion, error) {
+	var qs []model.ExamQuestion
+	err := r.db.Where("exam_id = ?", examID).Order("\"order\" ASC").Find(&qs).Error
+	return qs, err
+}
+
+// ExamSubmission 考试提交
+
+func (r *Repository) CreateExamSubmission(s *model.ExamSubmission) error {
+	return r.db.Create(s).Error
+}
+
+func (r *Repository) GetLatestExamSubmission(userID, examID uint) (*model.ExamSubmission, error) {
+	var s model.ExamSubmission
+	err := r.db.Where("user_id = ? AND exam_id = ?", userID, examID).Order("created_at DESC").First(&s).Error
+	return &s, err
+}
+
+func (r *Repository) CountExamSubmissions(userID, examID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.ExamSubmission{}).
+		Where("user_id = ? AND exam_id = ?", userID, examID).
+		Count(&count).Error
+	return count, err
+}
+
+// Certificate 证书
+
+func (r *Repository) CreateCertificate(c *model.Certificate) error {
+	return r.db.Create(c).Error
+}
+
+func (r *Repository) GetCertificateByNo(certNo string) (*model.Certificate, error) {
+	var c model.Certificate
+	err := r.db.Where("cert_no = ?", certNo).First(&c).Error
+	return &c, err
+}
+
+func (r *Repository) ListCertificatesByUser(userID uint) ([]model.Certificate, error) {
+	var list []model.Certificate
+	err := r.db.Where("user_id = ?", userID).Order("issued_at DESC").Find(&list).Error
+	return list, err
+}
+
+func (r *Repository) CountCertificates(userID, courseID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.Certificate{}).
+		Where("user_id = ? AND course_id = ?", userID, courseID).
+		Count(&count).Error
+	return count, err
 }

@@ -30,6 +30,8 @@ func main() {
 		&model.User{}, &model.Course{}, &model.Unit{},
 		&model.Lesson{}, &model.Exercise{}, &model.UserProgress{},
 		&model.Submission{}, &model.WrongExercise{},
+		&model.XPEvent{}, &model.Exam{}, &model.ExamQuestion{},
+		&model.ExamSubmission{}, &model.Certificate{},
 	); err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 	}
@@ -39,6 +41,9 @@ func main() {
 	courseSvc := service.NewCourseService(repo)
 	progressSvc := service.NewProgressService(repo, cfg.XPPerLesson, cfg.XPPerExercise, cfg.MaxHearts)
 	wrongSvc := service.NewWrongExerciseService(repo)
+	examSvc := service.NewExamService(repo)
+	leaderboardSvc := service.NewLeaderboardService(repo)
+	certSvc := service.NewCertificateService(repo)
 	generator := eino.NewExerciseGenerator(cfg)
 
 	// Eino 组件初始化
@@ -56,9 +61,12 @@ func main() {
 	adaptiveHandler := handler.NewAdaptiveHandler(adaptiveAdvisor, repo)
 	tutorHandler := handler.NewTutorHandler(tutorAgent)
 	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeRAG)
+	examHandler := handler.NewExamHandler(examSvc, progressSvc)
+	leaderboardHandler := handler.NewLeaderboardHandler(leaderboardSvc)
+	certHandler := handler.NewCertificateHandler(certSvc)
 
 	// 初始化路由
-	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler)
+	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler)
 
 	// 种子数据
 	if err := seedData(repo); err != nil {

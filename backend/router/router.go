@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler) *gin.Engine {
+func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler, exam *handler.ExamHandler, leaderboard *handler.LeaderboardHandler, cert *handler.CertificateHandler) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -27,6 +27,7 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 	{
 		api.POST("/auth/register", auth.Register)
 		api.POST("/auth/login", auth.Login)
+		api.POST("/certificates/verify", cert.Verify)
 
 		authed := api.Group("")
 		authed.Use(middleware.AuthMiddleware(cfg.JWTSecret))
@@ -48,10 +49,23 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 
 			authed.GET("/users/me/stats", progress.Stats)
 			authed.GET("/users/me/progress", progress.ListProgress)
+			authed.PUT("/users/me/daily-goal", progress.UpdateDailyGoal)
+			authed.GET("/users/me/calendar", leaderboard.Calendar)
 
 			authed.GET("/wrong-exercises", wrong.List)
 			authed.POST("/wrong-exercises/:id/master", wrong.MarkMastered)
 			authed.GET("/wrong-exercises/count", wrong.Count)
+
+			// 考试（单元考试 / 认证考试）
+			authed.POST("/units/:id/exam", exam.StartUnitExam)
+			authed.POST("/exams/:id/submit", exam.SubmitExam)
+			authed.GET("/exams/:id/report", exam.GetReport)
+
+			// 排行榜
+			authed.GET("/leaderboard", leaderboard.Weekly)
+
+			// 证书
+			authed.GET("/certificates", cert.List)
 
 			// Eino Chain 模式：自适应学习路径
 			authed.GET("/adaptive/recommend", adaptive.Recommend)

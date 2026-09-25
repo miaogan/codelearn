@@ -1,22 +1,64 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { userApi } from '@/api/client'
+import { userApi, leaderboardApi } from '@/api/client'
+import type { CalendarDay } from '@/types'
 
 const auth = useAuthStore()
 const router = useRouter()
 const todayPercent = ref(0)
+const calendarDays = ref<CalendarDay[]>([])
+const calendarYear = ref(0)
+const calendarMonth = ref(0)
 
 onMounted(async () => {
   try {
-    const res = await userApi.stats()
-    auth.setStats(res.data)
-    todayPercent.value = Math.min(100, Math.round((res.data.today_xp / res.data.daily_goal) * 100))
+    const [statsRes, calRes] = await Promise.all([
+      userApi.stats(),
+      leaderboardApi.calendar(),
+    ])
+    auth.setStats(statsRes.data)
+    todayPercent.value = Math.min(100, Math.round((statsRes.data.today_xp / statsRes.data.daily_goal) * 100))
+    calendarDays.value = calRes.data.days
+    calendarYear.value = calRes.data.year
+    calendarMonth.value = calRes.data.month
   } catch (e) {
     // ignore
   }
 })
+
+const xpByDate = computed(() => {
+  const map = new Map<string, number>()
+  for (const d of calendarDays.value) {
+    map.set(d.date, d.xp)
+  }
+  return map
+})
+
+// 生成当月日历网格（周为行，天为列）
+const monthGrid = computed(() => {
+  const first = new Date(calendarYear.value, calendarMonth.value - 1, 1)
+  const daysInMonth = new Date(calendarYear.value, calendarMonth.value, 0).getDate()
+  const startOffset = first.getDay() // 0=周日
+  const cells: { day: number; xp: number; hasXP: boolean }[] = []
+  for (let i = 0; i < startOffset; i++) {
+    cells.push({ day: 0, xp: 0, hasXP: false })
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${calendarYear.value}-${String(calendarMonth.value).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    const xp = xpByDate.value.get(key) || 0
+    cells.push({ day: d, xp, hasXP: xp > 0 })
+  }
+  return cells
+})
+
+function cellClass(c: { hasXP: boolean; xp: number }) {
+  if (!c.hasXP) return 'cal-day empty'
+  if (c.xp >= 80) return 'cal-day hot'
+  if (c.xp >= 40) return 'cal-day mid'
+  return 'cal-day low'
+}
 
 function logout() {
   auth.logout()
@@ -65,8 +107,29 @@ function logout() {
       </div>
     </div>
 
+    <!-- 学习日历 -->
+    <div class="calendar-section">
+      <h2 class="section-title">学习日历 · {{ calendarYear }} 年 {{ calendarMonth }} 月</h2>
+      <div class="cal-weekdays">
+        <span v-for="w in ['日', '一', '二', '三', '四', '五', '六']" :key="w">{{ w }}</span>
+      </div>
+      <div class="cal-grid">
+        <div
+          v-for="(c, i) in monthGrid"
+          :key="i"
+          class="cal-day"
+          :class="cellClass(c)"
+          :title="c.day ? `${c.day}日 · ${c.xp} XP` : ''"
+        >
+          <span v-if="c.day">{{ c.day }}</span>
+        </div>
+      </div>
+      <p class="cal-legend">坚持每天学习，点亮你的日历 🔥</p>
+    </div>
+
     <div class="actions">
       <router-link to="/" class="btn-secondary">继续学习</router-link>
+      <router-link to="/leaderboard" class="btn-secondary">排行榜</router-link>
       <button class="btn-ghost" @click="logout">退出登录</button>
     </div>
   </div>
@@ -158,4 +221,38 @@ function logout() {
   gap: 12px;
 }
 .actions > * { flex: 1; text-align: center; }
+
+/* 学习日历 */
+.calendar-section {
+  margin-bottom: 32px;
+}
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-light);
+  margin-bottom: 6px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  background: var(--bg-gray);
+  color: var(--text-light);
+}
+.cal-day.empty { color: transparent; background: transparent; }
+.cal-day.low { background: #dbeafe; color: var(--primary-dark); }
+.cal-day.mid { background: #93c5fd; color: white; }
+.cal-day.hot { background: #3b82f6; color: white; }
+.cal-legend { margin-top: 10px; font-size: 12px; color: var(--text-light); }
 </style>

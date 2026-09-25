@@ -29,14 +29,16 @@ type Course struct {
 }
 
 type Unit struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	CourseID    uint   `gorm:"index;not null" json:"course_id"`
-	Title       string `gorm:"size:200;not null" json:"title"`
-	Description string `gorm:"size:500" json:"description"`
-	Icon        string `gorm:"size:50" json:"icon"`
-	Color       string `gorm:"size:20" json:"color"`
-	Order       int    `gorm:"default:0" json:"order"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID                uint      `gorm:"primaryKey" json:"id"`
+	CourseID          uint      `gorm:"index;not null" json:"course_id"`
+	Title             string    `gorm:"size:200;not null" json:"title"`
+	Description       string    `gorm:"size:500" json:"description"`
+	Icon              string    `gorm:"size:50" json:"icon"`
+	Color             string    `gorm:"size:20" json:"color"`
+	Order             int       `gorm:"default:0" json:"order"`
+	ExamDurationMin   int       `gorm:"default:15" json:"exam_duration_min"`
+	ExamQuestionCount int       `gorm:"default:10" json:"exam_question_count"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type Lesson struct {
@@ -99,4 +101,61 @@ type WrongExercise struct {
 	ReviewedAt  *time.Time `json:"reviewed_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+// XPEvent XP 变动流水（排行榜与学习日历的数据源）
+type XPEvent struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"index;not null" json:"user_id"`
+	Amount    int       `gorm:"not null" json:"amount"`
+	Reason    string    `gorm:"size:20;not null" json:"reason"` // lesson / exercise / exam
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Exam 考试（单元考试 / 认证考试）
+type Exam struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	CourseID      uint      `gorm:"index;not null" json:"course_id"`
+	UnitID        uint      `gorm:"index" json:"unit_id"`
+	Title         string    `gorm:"size:200;not null" json:"title"`
+	ExamType      string    `gorm:"size:20;not null;default:unit" json:"exam_type"` // unit / cert
+	DurationMin   int       `gorm:"default:15" json:"duration_min"`
+	QuestionCount int       `gorm:"default:10" json:"question_count"`
+	PassScore     int       `gorm:"default:60" json:"pass_score"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// ExamQuestion 考试题目快照（保证同一场考试试卷稳定）
+type ExamQuestion struct {
+	ID         uint `gorm:"primaryKey" json:"id"`
+	ExamID     uint `gorm:"index;not null" json:"exam_id"`
+	ExerciseID uint `gorm:"not null" json:"exercise_id"`
+	Order      int  `gorm:"default:0" json:"order"`
+}
+
+// ExamSubmission 考试提交记录
+type ExamSubmission struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	UserID       uint      `gorm:"index;not null" json:"user_id"`
+	ExamID       uint      `gorm:"index;not null" json:"exam_id"`
+	Score        int       `gorm:"not null" json:"score"`
+	CorrectCount int       `gorm:"not null" json:"correct_count"`
+	TotalCount   int       `gorm:"not null" json:"total_count"`
+	DurationSec  int       `gorm:"default:0" json:"duration_sec"`
+	Passed       bool      `gorm:"not null" json:"passed"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// Certificate 能力认证证书
+type Certificate struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	UserID      uint      `gorm:"index;not null" json:"user_id"`
+	CourseID    uint      `gorm:"index;not null" json:"course_id"`
+	CertNo      string    `gorm:"uniqueIndex;size:40;not null" json:"cert_no"`
+	Level       string    `gorm:"size:20;not null" json:"level"` // beginner / intermediate / advanced
+	Score       int       `gorm:"not null" json:"score"`
+	CourseTitle string    `gorm:"size:200;not null" json:"course_title"`
+	UserName    string    `gorm:"size:50;not null" json:"user_name"`
+	IssuedAt    time.Time `json:"issued_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }

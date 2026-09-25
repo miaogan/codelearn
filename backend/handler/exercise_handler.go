@@ -50,6 +50,9 @@ func (h *ExerciseHandler) Submit(c *gin.Context) {
 	hearts := 5
 	if !correct {
 		hearts, _ = h.progressSvc.LoseHeart(userID)
+	} else {
+		// 答对记录练习 XP（用于排行榜/学习日历）
+		h.progressSvc.RecordExerciseXP(userID)
 	}
 
 	c.JSON(http.StatusOK, gin.H{

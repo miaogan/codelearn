@@ -17,7 +17,12 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("failed to open test db: %v", err)
 	}
-	if err := db.AutoMigrate(&model.User{}, &model.Course{}, &model.Unit{}, &model.Lesson{}, &model.Exercise{}, &model.UserProgress{}, &model.Submission{}); err != nil {
+	if err := db.AutoMigrate(
+		&model.User{}, &model.Course{}, &model.Unit{}, &model.Lesson{},
+		&model.Exercise{}, &model.UserProgress{}, &model.Submission{},
+		&model.WrongExercise{}, &model.XPEvent{}, &model.Exam{},
+		&model.ExamQuestion{}, &model.ExamSubmission{}, &model.Certificate{},
+	); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 	return db
@@ -250,6 +255,45 @@ func TestUpdateStreak_Broken(t *testing.T) {
 
 	if user.StreakDays != 1 {
 		t.Errorf("expected streak=1 (broken), got %d", user.StreakDays)
+	}
+}
+
+func TestUpdateDailyGoal(t *testing.T) {
+	db := setupTestDB(t)
+	repo := newTestRepo(db)
+	svc := NewProgressService(repo, 20, 10, 5)
+
+	user := seedUser(db)
+
+	goal, err := svc.UpdateDailyGoal(user.ID, 100)
+	if err != nil {
+		t.Fatalf("UpdateDailyGoal failed: %v", err)
+	}
+	if goal != 100 {
+		t.Errorf("expected returned goal 100, got %d", goal)
+	}
+	updated, _ := repo.GetUserByID(user.ID)
+	if updated.DailyGoal != 100 {
+		t.Errorf("expected daily goal 100, got %d", updated.DailyGoal)
+	}
+
+	// 越界值会被钳制，且返回值反映钳制后的实际值
+	goal, _ = svc.UpdateDailyGoal(user.ID, 99999)
+	if goal != 500 {
+		t.Errorf("expected returned goal clamped to 500, got %d", goal)
+	}
+	updated, _ = repo.GetUserByID(user.ID)
+	if updated.DailyGoal != 500 {
+		t.Errorf("expected daily goal clamped to 500, got %d", updated.DailyGoal)
+	}
+
+	goal, _ = svc.UpdateDailyGoal(user.ID, 1)
+	if goal != 10 {
+		t.Errorf("expected returned goal clamped to 10, got %d", goal)
+	}
+	updated, _ = repo.GetUserByID(user.ID)
+	if updated.DailyGoal != 10 {
+		t.Errorf("expected daily goal clamped to 10, got %d", updated.DailyGoal)
 	}
 }
 
