@@ -41,6 +41,25 @@ type TestCase struct {
 
 const defaultTimeout = 10 * time.Second
 
+// maxOutputBytes 单次运行输出上限：防止恶意代码打印海量内容耗尽服务内存
+const maxOutputBytes = 64 * 1024
+
+// runTimeout 按语言返回执行超时：Go 首次冷编译标准库耗时长，放宽余量
+func runTimeout(language string) time.Duration {
+	if language == "go" {
+		return 20 * time.Second
+	}
+	return defaultTimeout
+}
+
+// truncateOutput 截断超长输出并在末尾标注
+func truncateOutput(s string) string {
+	if len(s) <= maxOutputBytes {
+		return s
+	}
+	return s[:maxOutputBytes] + fmt.Sprintf("\n...输出已截断（超过 %d 字节）", maxOutputBytes)
+}
+
 // RunCode 执行用户提交的代码并返回输出。
 // 注意：当前为直接执行，生产环境应使用 Docker 容器隔离。
 func RunCode(language, code string) *RunResult {
@@ -67,7 +86,7 @@ func RunCode(language, code string) *RunResult {
 		return &RunResult{Error: "写入代码文件失败: " + err.Error(), ExitCode: -1}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), runTimeout(language))
 	defer cancel()
 
 	cmd := buildRunCommand(ctx, language, path)
@@ -235,20 +254,20 @@ func execCmd(ctx context.Context, cmd *exec.Cmd, stdin string) *RunResult {
 	elapsed := time.Since(start).Milliseconds()
 
 	result := &RunResult{
-		Output:   stdout.String(),
+		Output:   truncateOutput(stdout.String()),
 		ExitCode: 0,
 		TimeMs:   elapsed,
 	}
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			result.Error = "执行超时（超过 " + fmt.Sprintf("%v", defaultTimeout) + "）"
+			result.Error = "执行超时（超过运行时限）"
 			result.ExitCode = -1
 		} else {
 			errMsg := stderr.String()
 			if errMsg == "" {
 				errMsg = err.Error()
 			}
-			result.Error = errMsg
+			result.Error = truncateOutput(errMsg)
 			result.ExitCode = 1
 		}
 	}

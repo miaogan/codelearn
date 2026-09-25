@@ -1,6 +1,8 @@
 package router
 
 import (
+	"time"
+
 	"codelearn/config"
 	"codelearn/handler"
 	"codelearn/middleware"
@@ -25,8 +27,9 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 
 	api := r.Group("/api")
 	{
-		api.POST("/auth/register", auth.Register)
-		api.POST("/auth/login", auth.Login)
+		// 认证接口按 IP 限流，防撞库/批量注册
+		api.POST("/auth/register", middleware.RateLimit(5, time.Minute), auth.Register)
+		api.POST("/auth/login", middleware.RateLimit(10, time.Minute), auth.Login)
 		api.POST("/certificates/verify", cert.Verify)
 
 		// 公开能力档案（U10）

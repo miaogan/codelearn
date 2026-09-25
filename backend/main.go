@@ -19,6 +19,11 @@ import (
 func main() {
 	cfg := config.Load()
 
+	// 默认 JWT 密钥仅用于本地开发：生产环境务必通过 JWT_SECRET 覆盖
+	if cfg.JWTSecret == "codelearn-dev-secret-change-me" {
+		log.Println("⚠️  警告: 正在使用默认 JWT 密钥（codelearn-dev-secret-change-me），生产环境请设置 JWT_SECRET 环境变量")
+	}
+
 	// 初始化数据库（SQLite，纯 Go 驱动，无需 CGO）
 	db, err := gorm.Open(sqlite.Open(cfg.DBPath), &gorm.Config{})
 	if err != nil {

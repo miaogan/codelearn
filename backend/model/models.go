@@ -3,29 +3,29 @@ package model
 import "time"
 
 type User struct {
-	ID            uint       `gorm:"primaryKey" json:"id"`
-	Username      string     `gorm:"uniqueIndex;size:50;not null" json:"username"`
-	Email         string     `gorm:"uniqueIndex;size:100;not null" json:"email"`
-	PasswordHash  string     `gorm:"size:255;not null" json:"-"`
-	XP            int        `gorm:"default:0" json:"xp"`
-	StreakDays    int        `gorm:"default:0" json:"streak_days"`
-	LastStreakAt  *time.Time `json:"last_streak_at,omitempty"`
-	Hearts        int        `gorm:"default:5" json:"hearts"`
-	MaxHearts     int        `gorm:"default:5" json:"max_hearts"`
-	DailyGoal     int        `gorm:"default:50" json:"daily_goal"`
-	FreezeCards   int        `gorm:"default:2" json:"freeze_cards"` // 补签卡：断签时自动消耗保住 streak
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID           uint       `gorm:"primaryKey" json:"id"`
+	Username     string     `gorm:"uniqueIndex;size:50;not null" json:"username"`
+	Email        string     `gorm:"uniqueIndex;size:100;not null" json:"email"`
+	PasswordHash string     `gorm:"size:255;not null" json:"-"`
+	XP           int        `gorm:"default:0" json:"xp"`
+	StreakDays   int        `gorm:"default:0" json:"streak_days"`
+	LastStreakAt *time.Time `json:"last_streak_at,omitempty"`
+	Hearts       int        `gorm:"default:5" json:"hearts"`
+	MaxHearts    int        `gorm:"default:5" json:"max_hearts"`
+	DailyGoal    int        `gorm:"default:50" json:"daily_goal"`
+	FreezeCards  int        `gorm:"default:2" json:"freeze_cards"` // 补签卡：断签时自动消耗保住 streak
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 type Course struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	Language    string `gorm:"size:20;index;not null" json:"language"`
-	Title       string `gorm:"size:200;not null" json:"title"`
-	Description string `gorm:"size:500" json:"description"`
-	Emoji       string `gorm:"size:10" json:"emoji"`
-	Color       string `gorm:"size:20" json:"color"`
-	Order       int    `gorm:"default:0" json:"order"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Language    string    `gorm:"size:20;index;not null" json:"language"`
+	Title       string    `gorm:"size:200;not null" json:"title"`
+	Description string    `gorm:"size:500" json:"description"`
+	Emoji       string    `gorm:"size:10" json:"emoji"`
+	Color       string    `gorm:"size:20" json:"color"`
+	Order       int       `gorm:"default:0" json:"order"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -43,29 +43,29 @@ type Unit struct {
 }
 
 type Lesson struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	UnitID      uint   `gorm:"index;not null" json:"unit_id"`
-	Title       string `gorm:"size:200;not null" json:"title"`
-	Description string `gorm:"size:500" json:"description"`
-	Content     string `gorm:"type:text" json:"content"`
-	Icon        string `gorm:"size:50" json:"icon"`
-	Order       int    `gorm:"default:0" json:"order"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	UnitID      uint      `gorm:"index;not null" json:"unit_id"`
+	Title       string    `gorm:"size:200;not null" json:"title"`
+	Description string    `gorm:"size:500" json:"description"`
+	Content     string    `gorm:"type:text" json:"content"`
+	Icon        string    `gorm:"size:50" json:"icon"`
+	Order       int       `gorm:"default:0" json:"order"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Exercise struct {
-	ID           uint   `gorm:"primaryKey" json:"id"`
-	LessonID     uint   `gorm:"index;not null" json:"lesson_id"`
-	Type         string `gorm:"size:20;not null" json:"type"`
-	Question     string `gorm:"type:text;not null" json:"question"`
-	Options      string `gorm:"type:text" json:"options"`
-	Answer       string `gorm:"type:text;not null" json:"answer"`
-	Explanation  string `gorm:"type:text" json:"explanation"`
-	Difficulty   string `gorm:"size:20;default:easy" json:"difficulty"`
-	CodeTemplate string `gorm:"type:text" json:"code_template"`
-	TestCases    string `gorm:"type:text" json:"test_cases"`
-	Order        int    `gorm:"default:0" json:"order"`
-	IsAIGen      bool   `gorm:"default:false" json:"is_ai_gen"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	LessonID     uint      `gorm:"index;not null" json:"lesson_id"`
+	Type         string    `gorm:"size:20;not null" json:"type"`
+	Question     string    `gorm:"type:text;not null" json:"question"`
+	Options      string    `gorm:"type:text" json:"options"`
+	Answer       string    `gorm:"type:text;not null" json:"answer"`
+	Explanation  string    `gorm:"type:text" json:"explanation"`
+	Difficulty   string    `gorm:"size:20;default:easy" json:"difficulty"`
+	CodeTemplate string    `gorm:"type:text" json:"code_template"`
+	TestCases    string    `gorm:"type:text" json:"test_cases"`
+	Order        int       `gorm:"default:0" json:"order"`
+	IsAIGen      bool      `gorm:"default:false" json:"is_ai_gen"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -92,19 +92,19 @@ type Submission struct {
 
 // WrongExercise 错题本：记录用户答错的习题，支持回顾、SRS 间隔复习和已掌握标记
 type WrongExercise struct {
-	ID             uint       `gorm:"primaryKey" json:"id"`
-	UserID         uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"user_id"`
-	ExerciseID     uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"exercise_id"`
-	UserAnswer     string     `gorm:"type:text" json:"user_answer"`
-	WrongCount     int        `gorm:"default:1" json:"wrong_count"`
-	Source         string     `gorm:"size:20;default:exercise" json:"source"` // exercise / exam
-	Mastered       bool       `gorm:"default:false" json:"mastered"`
-	ReviewStage    int        `gorm:"default:0" json:"review_stage"` // SRS 熟练度 0-5，5 级连续答对自动掌握
-	NextReviewAt   *time.Time `json:"next_review_at,omitempty"`      // SRS 下次复习时间
-	LastWrongAt    time.Time  `json:"last_wrong_at"`
-	ReviewedAt     *time.Time `json:"reviewed_at,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID           uint       `gorm:"primaryKey" json:"id"`
+	UserID       uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"user_id"`
+	ExerciseID   uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"exercise_id"`
+	UserAnswer   string     `gorm:"type:text" json:"user_answer"`
+	WrongCount   int        `gorm:"default:1" json:"wrong_count"`
+	Source       string     `gorm:"size:20;default:exercise" json:"source"` // exercise / exam
+	Mastered     bool       `gorm:"default:false" json:"mastered"`
+	ReviewStage  int        `gorm:"default:0" json:"review_stage"` // SRS 熟练度 0-5，5 级连续答对自动掌握
+	NextReviewAt *time.Time `json:"next_review_at,omitempty"`      // SRS 下次复习时间
+	LastWrongAt  time.Time  `json:"last_wrong_at"`
+	ReviewedAt   *time.Time `json:"reviewed_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 // Achievement 成就徽章（U12：事件驱动解锁）
@@ -151,15 +151,15 @@ type ExamQuestion struct {
 // ExamSubmission 考试提交记录
 type ExamSubmission struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
-	UserID       uint      `gorm:"index;not null" json:"user_id"`
-	ExamID       uint      `gorm:"index;not null" json:"exam_id"`
+	UserID       uint      `gorm:"index;index:idx_user_exam_created,priority:1;not null" json:"user_id"`
+	ExamID       uint      `gorm:"index;index:idx_user_exam_created,priority:2;not null" json:"exam_id"`
 	Score        int       `gorm:"not null" json:"score"`
 	CorrectCount int       `gorm:"not null" json:"correct_count"`
 	TotalCount   int       `gorm:"not null" json:"total_count"`
 	DurationSec  int       `gorm:"default:0" json:"duration_sec"`
 	TabSwitches  int       `gorm:"default:0" json:"tab_switches"` // 防作弊：考试期间切屏次数
 	Passed       bool      `gorm:"not null" json:"passed"`
-	CreatedAt    time.Time `json:"created_at"`
+	CreatedAt    time.Time `gorm:"index:idx_user_exam_created,priority:3" json:"created_at"`
 }
 
 // Certificate 能力认证证书

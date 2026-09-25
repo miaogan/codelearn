@@ -53,11 +53,29 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 		return nil, err
 	}
 	units, _ := s.repo.ListUnitsByCourse(courseID)
+
+	// 一次批量加载课程单元考试与用户全部考试提交，避免逐单元 N+1
+	unitIDs := make([]uint, 0, len(units))
+	for _, u := range units {
+		unitIDs = append(unitIDs, u.ID)
+	}
+	exams, _ := s.repo.ListExamsByUnitIDs(unitIDs)
+	examsByUnit := map[uint][]model.Exam{}
+	for _, e := range exams {
+		examsByUnit[e.UnitID] = append(examsByUnit[e.UnitID], e)
+	}
+	allSubs, _ := s.repo.ListExamSubmissionsByUser(userID)
+	latestByExam := map[uint]*model.ExamSubmission{}
+	for i := range allSubs {
+		latestByExam[allSubs[i].ExamID] = &allSubs[i] // CreatedAt 升序，后写覆盖即最近一次
+	}
+
 	passed := 0
 	totalLessons := 0
 	completedLessons := 0
 	examScoreSum := 0
 	examUnits := 0
+	passedByUnit := map[uint]bool{}
 	for _, u := range units {
 		lessons, _ := s.repo.ListLessonsByUnit(u.ID)
 		for _, l := range lessons {
@@ -66,7 +84,8 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 				completedLessons++
 			}
 		}
-		ok, score, attempted := s.unitExamLatest(userID, u.ID)
+		ok, score, attempted := unitExamStatus(examsByUnit[u.ID], latestByExam)
+		passedByUnit[u.ID] = ok
 		if attempted {
 			examScoreSum += score
 			examUnits++
@@ -139,7 +158,7 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 		advice = "状态一般。建议优先补齐未完成课时、针对薄弱知识点加强练习后再考试。"
 	}
 
-	prepTasks := s.buildPrepTasks(userID, units, passed, len(units))
+	prepTasks := s.buildPrepTasks(units, passedByUnit)
 
 	return &ExamPrediction{
 		CourseID:    courseID,
@@ -155,25 +174,21 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 	}, nil
 }
 
-// unitExamLatest 返回用户在某个单元考试上的最近表现：
+// unitExamStatus 基于批量预加载的单元考试与最近提交判断最近表现：
 // 通过（任一考试实例最近一次提交通过，与认证资格判定一致）、最近分数、是否有过考试尝试。
 // 未考由 attempted=false 区分，避免虚增平均分。
-func (s *PredictionService) unitExamLatest(userID, unitID uint) (passed bool, score int, attempted bool) {
-	exams, err := s.repo.ListExamsByUnit(unitID)
-	if err != nil || len(exams) == 0 {
-		return false, 0, false
-	}
+func unitExamStatus(exams []model.Exam, latestByExam map[uint]*model.ExamSubmission) (passed bool, score int, attempted bool) {
 	var latest *model.ExamSubmission
 	for _, e := range exams {
-		sub, err := s.repo.GetLatestExamSubmission(userID, e.ID)
-		if err != nil {
+		sub, ok := latestByExam[e.ID]
+		if !ok {
 			continue
-		}
-		if latest == nil || sub.CreatedAt.After(latest.CreatedAt) {
-			latest = sub
 		}
 		if sub.Passed {
 			passed = true
+		}
+		if latest == nil || sub.CreatedAt.After(latest.CreatedAt) {
+			latest = sub
 		}
 	}
 	if latest == nil {
@@ -197,19 +212,17 @@ func (s *PredictionService) practiceAccuracy(userID uint) (correct, total int) {
 	return correct, total
 }
 
-// buildPrepTasks 生成备考任务（基于缺口）
-func (s *PredictionService) buildPrepTasks(userID uint, units []model.Unit, passed, total int) []PrepTask {
+// buildPrepTasks 生成备考任务（基于缺口，复用 Predict 已算出的各单元通过状态）
+func (s *PredictionService) buildPrepTasks(units []model.Unit, passedByUnit map[uint]bool) []PrepTask {
 	tasks := []PrepTask{}
-	if passed < total {
-		for _, u := range units {
-			if ok, _, _ := s.unitExamLatest(userID, u.ID); !ok {
-				tasks = append(tasks, PrepTask{
-					Title:    "通过单元考试：" + u.Title,
-					Type:     "exam",
-					TargetID: u.ID,
-					Reason:   "完成全部单元考试是参加认证考试的前提",
-				})
-			}
+	for _, u := range units {
+		if !passedByUnit[u.ID] {
+			tasks = append(tasks, PrepTask{
+				Title:    "通过单元考试：" + u.Title,
+				Type:     "exam",
+				TargetID: u.ID,
+				Reason:   "完成全部单元考试是参加认证考试的前提",
+			})
 		}
 	}
 	return tasks

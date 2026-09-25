@@ -62,7 +62,7 @@ func RunProject(language string, mainFile string, files []ProjectFileInput) *Run
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), runTimeout(language))
 	defer cancel()
 
 	mainFile = strings.TrimSpace(mainFile)
@@ -98,12 +98,15 @@ func RunProject(language string, mainFile string, files []ProjectFileInput) *Run
 		if home == "" {
 			home = "/root"
 		}
-		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home}
+		pathEnv := os.Getenv("PATH")
+		if pathEnv == "" {
+			pathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		}
+		cmd.Env = []string{"PATH=" + pathEnv, "HOME=" + home}
 		if language == "go" {
-			// nobody 无法写 root 家目录下的缓存，全部隔离到项目临时目录
-			// GOTMPDIR 必须预先存在（go 只 stat 不创建），三个目录均建为 0777 供 nobody 写入。
+			// GOTMPDIR 必须预先存在（go 只 stat 不创建），建为 0777 供 nobody 写入。
 			// 注意 MkdirAll 受 umask 影响，需再显式 chmod 0777。
-			for _, d := range []string{".gocache", ".gopath", ".gotmp"} {
+			for _, d := range []string{".gopath", ".gotmp"} {
 				if err := os.MkdirAll(filepath.Join(dir, d), 0o777); err != nil {
 					return &RunResult{Error: "创建缓存目录失败: " + err.Error(), ExitCode: -1}
 				}
@@ -111,9 +114,12 @@ func RunProject(language string, mainFile string, files []ProjectFileInput) *Run
 					return &RunResult{Error: "设置缓存目录权限失败: " + err.Error(), ExitCode: -1}
 				}
 			}
+			// GOCACHE 用共享路径：首次冷编译后热缓存，避免每次 6s+ 冷编译。
+			// 目录由 nobody 在 /tmp 自建（仅 65534 可写），避免跨用户缓存投毒。
+			gocache := filepath.Join(os.TempDir(), "codelearn-gocache-65534")
 			cmd.Env = append(cmd.Env,
 				"GOMEMLIMIT=256MiB",
-				"GOCACHE="+filepath.Join(dir, ".gocache"),
+				"GOCACHE="+gocache,
 				"GOPATH="+filepath.Join(dir, ".gopath"),
 				"GOTMPDIR="+filepath.Join(dir, ".gotmp"),
 				"GOENV=off",

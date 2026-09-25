@@ -35,6 +35,31 @@ func TestRunCode_PythonArithmetic(t *testing.T) {
 	}
 }
 
+func TestRunCode_LargeOutputTruncated(t *testing.T) {
+	// 恶意代码打印海量内容时，输出应被截断而非全量占用内存
+	code := `print("x" * 70000)`
+	result := RunCode("python", code)
+
+	if result.Error != "" {
+		t.Fatalf("unexpected error: %s", result.Error)
+	}
+	if !strings.Contains(result.Output, "输出已截断") {
+		t.Errorf("expected truncation marker, got %d bytes", len(result.Output))
+	}
+	if len(result.Output) >= 70000 {
+		t.Errorf("output not truncated: %d bytes", len(result.Output))
+	}
+}
+
+func TestTruncateOutput(t *testing.T) {
+	if got := truncateOutput(strings.Repeat("a", maxOutputBytes)); len(got) != maxOutputBytes {
+		t.Errorf("expected no truncation at limit, got %d bytes", len(got))
+	}
+	if got := truncateOutput(strings.Repeat("a", maxOutputBytes+1000)); !strings.Contains(got, "已截断") || len(got) >= maxOutputBytes+1000 {
+		t.Errorf("expected truncated output with marker, got %d bytes", len(got))
+	}
+}
+
 func TestRunCode_Go(t *testing.T) {
 	code := `package main
 
