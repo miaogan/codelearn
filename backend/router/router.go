@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler, exam *handler.ExamHandler, leaderboard *handler.LeaderboardHandler, cert *handler.CertificateHandler) *gin.Engine {
+func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.CourseHandler, exercise *handler.ExerciseHandler, code *handler.CodeHandler, progress *handler.ProgressHandler, wrong *handler.WrongExerciseHandler, adaptive *handler.AdaptiveHandler, tutor *handler.TutorHandler, knowledge *handler.KnowledgeHandler, exam *handler.ExamHandler, leaderboard *handler.LeaderboardHandler, cert *handler.CertificateHandler, skill *handler.SkillHandler) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -66,6 +66,10 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 
 			// 证书
 			authed.GET("/certificates", cert.List)
+
+			// 能力图谱 / 复习推荐
+			authed.GET("/courses/:id/skill-map", skill.SkillMap)
+			authed.GET("/users/me/review-recommendations", skill.ReviewRecommendations)
 
 			// Eino Chain 模式：自适应学习路径
 			authed.GET("/adaptive/recommend", adaptive.Recommend)

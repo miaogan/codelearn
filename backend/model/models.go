@@ -96,6 +96,7 @@ type WrongExercise struct {
 	ExerciseID   uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"exercise_id"`
 	UserAnswer   string     `gorm:"type:text" json:"user_answer"`
 	WrongCount   int        `gorm:"default:1" json:"wrong_count"`
+	Source       string     `gorm:"size:20;default:exercise" json:"source"` // exercise / exam
 	Mastered     bool       `gorm:"default:false" json:"mastered"`
 	LastWrongAt time.Time  `json:"last_wrong_at"`
 	ReviewedAt  *time.Time `json:"reviewed_at,omitempty"`
@@ -142,6 +143,7 @@ type ExamSubmission struct {
 	CorrectCount int       `gorm:"not null" json:"correct_count"`
 	TotalCount   int       `gorm:"not null" json:"total_count"`
 	DurationSec  int       `gorm:"default:0" json:"duration_sec"`
+	TabSwitches  int       `gorm:"default:0" json:"tab_switches"` // 防作弊：考试期间切屏次数
 	Passed       bool      `gorm:"not null" json:"passed"`
 	CreatedAt    time.Time `json:"created_at"`
 }

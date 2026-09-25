@@ -130,6 +130,7 @@ export interface WrongExerciseItem {
   user_answer: string
   correct_answer: string
   explanation: string
+  source?: string
   wrong_count: number
   mastered: boolean
   last_wrong_at: string
@@ -167,6 +168,21 @@ export interface ExamReportItem {
   explanation: string
 }
 
+export interface TypeAccuracy {
+  type: string
+  total: number
+  correct: number
+  accuracy: number
+}
+
+export interface KnowledgePoint {
+  lesson_id: number
+  title: string
+  total: number
+  correct: number
+  mastery: number
+}
+
 export interface ExamReport {
   exam_id: number
   score: number
@@ -175,7 +191,11 @@ export interface ExamReport {
   passed: boolean
   pass_score: number
   duration_sec: number
+  tab_switches: number
   attempts: number
+  best_score: number
+  by_type: TypeAccuracy[]
+  knowledge: KnowledgePoint[]
   results: ExamReportItem[]
 }
 
@@ -205,4 +225,34 @@ export interface Certificate {
   course_title: string
   user_name: string
   issued_at: string
+}
+
+// ===== 能力图谱 / 复习推荐（Sprint 3 新增） =====
+
+export interface SkillNode {
+  lesson_id: number
+  lesson_title: string
+  icon: string
+  unit_id: number
+  unit_title: string
+  mastery: number
+  status: string
+  completed: boolean
+}
+
+export interface SkillMap {
+  course: Course
+  nodes: SkillNode[]
+  overall: number
+}
+
+export interface ReviewRecommendation {
+  lesson_id: number
+  lesson_title: string
+  course_id: number
+  course_title: string
+  unit_id: number
+  weak_count: number
+  mastery: number
+  reason: string
 }

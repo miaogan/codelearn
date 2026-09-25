@@ -48,6 +48,7 @@ func (h *ExamHandler) StartUnitExam(c *gin.Context) {
 type unitExamSubmitReq struct {
 	Answers     []service.ExamAnswerItem `json:"answers" binding:"required"`
 	DurationSec int                      `json:"duration_sec"`
+	TabSwitches int                      `json:"tab_switches"` // 防作弊：考试期间切屏次数
 }
 
 // SubmitExam 提交考试，返回考试报告；通过后发放考试 XP
@@ -64,10 +65,15 @@ func (h *ExamHandler) SubmitExam(c *gin.Context) {
 	}
 	userID := middleware.GetUserID(c)
 
-	report, err := h.examSvc.SubmitExam(userID, uint(examID), req.Answers, req.DurationSec)
+	report, err := h.examSvc.SubmitExam(userID, uint(examID), req.Answers, req.DurationSec, req.TabSwitches)
 	if err != nil {
-		log.Printf("[SubmitExam] examID=%d err=%v", examID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "提交考试失败"})
+		switch err {
+		case service.ErrAlreadyPassed, service.ErrRetryCoolDown:
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			log.Printf("[SubmitExam] examID=%d err=%v", examID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "提交考试失败"})
+		}
 		return
 	}
 

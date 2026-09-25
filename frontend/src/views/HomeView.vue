@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { courseApi, userApi, wrongApi } from '@/api/client'
-import type { Course, SkillTreeLesson, WrongExerciseItem } from '@/types'
+import { courseApi, userApi, wrongApi, skillApi } from '@/api/client'
+import type { Course, SkillTreeLesson, WrongExerciseItem, ReviewRecommendation } from '@/types'
 
 const router = useRouter()
 const courses = ref<Course[]>([])
@@ -12,19 +12,22 @@ const dailyGoal = ref(50)
 const streakDays = ref(0)
 const nextLesson = ref<{ lessonId: number; courseId: number; courseTitle: string; lessonTitle: string } | null>(null)
 const recommendWrong = ref<WrongExerciseItem[]>([])
+const recommendReview = ref<ReviewRecommendation[]>([])
 
 onMounted(async () => {
   try {
-    const [coursesRes, statsRes, wrongRes] = await Promise.all([
+    const [coursesRes, statsRes, wrongRes, reviewRes] = await Promise.all([
       courseApi.list(),
       userApi.stats(),
       wrongApi.list(true),
+      skillApi.recommendations(),
     ])
     courses.value = coursesRes.data.courses
     todayXP.value = statsRes.data.today_xp
     dailyGoal.value = statsRes.data.daily_goal
     streakDays.value = statsRes.data.streak_days
     recommendWrong.value = wrongRes.data.wrong_exercises.slice(0, 3)
+    recommendReview.value = reviewRes.data.recommendations.slice(0, 3)
     await findNextLesson()
   } catch (e) {
     // ignore
@@ -152,6 +155,26 @@ const CIRC = 2 * Math.PI * R
           <div class="rec-body">
             <div class="rec-question">{{ w.question }}</div>
             <div class="rec-meta">错了 {{ w.wrong_count }} 次 · {{ w.difficulty }}</div>
+          </div>
+          <span class="rec-arrow">→</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 薄弱章节复习推荐（自适应联动） -->
+    <div class="recommend" v-if="recommendReview.length > 0">
+      <h2 class="section-title">🧠 薄弱章节复习推荐</h2>
+      <div class="recommend-list">
+        <div
+          v-for="r in recommendReview"
+          :key="r.lesson_id"
+          class="recommend-item review"
+          @click="router.push(`/lesson/${r.lesson_id}`)"
+        >
+          <span class="rec-icon">📚</span>
+          <div class="rec-body">
+            <div class="rec-question">{{ r.lesson_title }}</div>
+            <div class="rec-meta">{{ r.course_title }} · {{ r.reason }}</div>
           </div>
           <span class="rec-arrow">→</span>
         </div>
@@ -315,6 +338,8 @@ const CIRC = 2 * Math.PI * R
   transition: all 0.15s;
 }
 .recommend-item:hover { border-color: var(--primary); transform: translateX(4px); }
+.recommend-item.review { border-color: #6ee7b7; }
+.recommend-item.review:hover { border-color: #10b981; }
 .rec-icon { font-size: 22px; }
 .rec-body { flex: 1; min-width: 0; }
 .rec-question { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

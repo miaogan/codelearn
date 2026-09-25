@@ -27,6 +27,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/course/:id/skill',
+      name: 'skill-map',
+      component: () => import('@/views/SkillMapView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/lesson/:id',
       name: 'lesson',
       component: () => import('@/views/LessonView.vue'),

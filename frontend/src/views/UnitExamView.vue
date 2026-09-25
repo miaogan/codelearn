@@ -15,11 +15,24 @@ const answers = ref<Map<number, string>>(new Map())
 const currentIdx = ref(0)
 const startTime = ref(0)
 const remainSec = ref(0)
+const tabSwitches = ref(0)
 let timer: ReturnType<typeof setInterval> | undefined
 
 const unitId = Number(route.params.unitId)
 
+// 防作弊：考试期间检测页面失焦/切屏
+function onVisibilityChange() {
+  if (phase.value !== 'exam') return
+  if (document.hidden) {
+    tabSwitches.value++
+    if (tabSwitches.value >= 3) {
+      alert('⚠️ 检测到多次切屏，该行为将被记录，影响成绩可信度！')
+    }
+  }
+}
+
 onMounted(async () => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
   try {
     exam.value = await (await examApi.startUnit(unitId)).data
     phase.value = 'intro'
@@ -31,6 +44,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
 const totalQuestions = computed(() => exam.value?.questions.length || 0)
@@ -95,7 +109,7 @@ async function submitExam() {
       exercise_id: q.exercise_id,
       answer: answers.value.get(q.id) || '',
     }))
-    report.value = (await examApi.submit(exam.value!.id, payload, durationSec)).data
+    report.value = (await examApi.submit(exam.value!.id, payload, durationSec, tabSwitches.value)).data
     phase.value = 'result'
   } catch (e: any) {
     errorMsg.value = e.response?.data?.error || '提交失败'
@@ -112,6 +126,17 @@ const fmtTime = computed(() => {
 function levelText(level: string) {
   const map: Record<string, string> = { beginner: '入门', intermediate: '进阶', advanced: '熟练' }
   return map[level] || level
+}
+
+function typeLabel(type: string) {
+  const map: Record<string, string> = { choice: '选择题', fillblank: '填空题', code: '代码题', order: '排序题', subjective: '主观题' }
+  return map[type] || type
+}
+
+function accClass(v: number) {
+  if (v >= 80) return 'good'
+  if (v >= 60) return 'mid'
+  return 'low'
 }
 </script>
 
@@ -198,7 +223,39 @@ function levelText(level: string) {
         <span class="result-icon">{{ report.passed ? '🎉' : '💪' }}</span>
         <h1 class="result-title">{{ report.passed ? '考试通过！' : '未通过，再接再厉' }}</h1>
         <div class="result-score">{{ report.score }}<span class="result-unit">分</span></div>
-        <p class="result-meta">答对 {{ report.correct_count }}/{{ report.total_count }} · 用时 {{ Math.floor(report.duration_sec / 60) }}分{{ report.duration_sec % 60 }}秒 · 第 {{ report.attempts }} 次</p>
+        <p class="result-meta">答对 {{ report.correct_count }}/{{ report.total_count }} · 用时 {{ Math.floor(report.duration_sec / 60) }}分{{ report.duration_sec % 60 }}秒 · 第 {{ report.attempts }} 次 · 最高 {{ report.best_score }} 分</p>
+      </div>
+
+      <div v-if="report.tab_switches > 0" class="cheat-warn">
+        ⚠️ 本次考试检测到 {{ report.tab_switches }} 次切屏，已记录在成绩中。
+      </div>
+
+      <!-- 分题型正确率 -->
+      <div class="analy-section" v-if="report.by_type && report.by_type.length > 0">
+        <h3 class="analy-title">📊 分题型表现</h3>
+        <div class="type-bars">
+          <div v-for="t in report.by_type" :key="t.type" class="type-bar">
+            <span class="type-label">{{ typeLabel(t.type) }}</span>
+            <div class="type-track">
+              <div class="type-fill" :class="accClass(t.accuracy)" :style="{ width: t.accuracy + '%' }"></div>
+            </div>
+            <span class="type-value">{{ t.correct }}/{{ t.total }} · {{ t.accuracy }}%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 知识点掌握度 -->
+      <div class="analy-section" v-if="report.knowledge && report.knowledge.length > 0">
+        <h3 class="analy-title">🧠 知识点掌握度</h3>
+        <div class="knowledge-list">
+          <div v-for="k in report.knowledge" :key="k.lesson_id" class="knowledge-item">
+            <span class="knowledge-name">{{ k.title }}</span>
+            <div class="knowledge-track">
+              <div class="knowledge-fill" :class="accClass(k.mastery)" :style="{ width: k.mastery + '%' }"></div>
+            </div>
+            <span class="knowledge-value">{{ k.mastery }}%</span>
+          </div>
+        </div>
       </div>
 
       <div class="result-detail">
@@ -345,6 +402,30 @@ function levelText(level: string) {
 .result-score { font-size: 56px; font-weight: 900; color: var(--text); }
 .result-unit { font-size: 20px; color: var(--text-light); margin-left: 4px; }
 .result-meta { color: var(--text-light); font-size: 14px; margin-top: 4px; }
+
+.cheat-warn {
+  background: #fef2f2;
+  border: 2px solid #fca5a5;
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 12px;
+}
+
+.analy-section { text-align: left; margin-top: 18px; }
+.analy-title { font-size: 15px; font-weight: 800; margin-bottom: 10px; }
+
+.type-bars, .knowledge-list { display: flex; flex-direction: column; gap: 8px; }
+.type-bar, .knowledge-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.type-label, .knowledge-name { width: 80px; flex-shrink: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type-track, .knowledge-track { flex: 1; height: 12px; background: var(--bg-gray); border-radius: 6px; overflow: hidden; }
+.type-fill, .knowledge-fill { height: 100%; border-radius: 6px; transition: width 0.5s; }
+.type-fill.good, .knowledge-fill.good { background: #22c55e; }
+.type-fill.mid, .knowledge-fill.mid { background: #f59e0b; }
+.type-fill.low, .knowledge-fill.low { background: #ef4444; }
+.type-value, .knowledge-value { width: 90px; flex-shrink: 0; text-align: right; color: var(--text-light); font-weight: 700; }
 
 .result-detail { text-align: left; margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
 .result-item {

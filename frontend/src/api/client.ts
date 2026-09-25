@@ -5,6 +5,7 @@ import type {
   User, Course, LearningPath, Lesson, Exercise,
   UserStats, RunResult, JudgeResult, SubmitResult, WrongExerciseItem, ExamResult,
   Exam, ExamReport, LeaderboardEntry, CalendarDay, Certificate,
+  SkillMap, ReviewRecommendation,
 } from '@/types'
 
 const api = axios.create({
@@ -100,10 +101,19 @@ export const adaptiveApi = {
 export const examApi = {
   startUnit: (unitId: number) =>
     api.post<Exam>(`/units/${unitId}/exam`),
-  submit: (examId: number, answers: { question_id: number; exercise_id: number; answer: string }[], durationSec = 0) =>
-    api.post<ExamReport>(`/exams/${examId}/submit`, { answers, duration_sec: durationSec }),
+  submit: (examId: number, answers: { question_id: number; exercise_id: number; answer: string }[], durationSec = 0, tabSwitches = 0) =>
+    api.post<ExamReport>(`/exams/${examId}/submit`, { answers, duration_sec: durationSec, tab_switches: tabSwitches }),
   report: (examId: number) =>
     api.get<ExamReport>(`/exams/${examId}/report`),
+}
+
+// ===== 能力图谱 / 复习推荐（Sprint 3 新增） =====
+
+export const skillApi = {
+  map: (courseId: number) =>
+    api.get<SkillMap>(`/courses/${courseId}/skill-map`),
+  recommendations: () =>
+    api.get<{ recommendations: ReviewRecommendation[] }>('/users/me/review-recommendations'),
 }
 
 // ===== 排行榜 / 学习日历（Sprint 0 新增） =====

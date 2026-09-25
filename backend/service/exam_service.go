@@ -13,6 +13,8 @@ import (
 var (
 	ErrUnitNotCompleted = errors.New("请先完成该单元的全部课时")
 	ErrNoQuestions      = errors.New("该单元暂无足够的题目组成试卷")
+	ErrAlreadyPassed    = errors.New("该考试已通过，无需重考")
+	ErrRetryCoolDown    = errors.New("24 小时内不可重考，请稍后再试")
 )
 
 const (
@@ -23,6 +25,8 @@ const (
 	ExamPassScore = 60
 	// ExamXP 考试通过奖励 XP
 	ExamXP = 20
+	// ExamRetryCoolDownHours 未通过后的重考冷却时长
+	ExamRetryCoolDownHours = 24
 )
 
 // ExamQuestionDTO 下发给前端的考题（不含答案）
@@ -64,6 +68,23 @@ type ExamResultItemDTO struct {
 	Explanation   string `json:"explanation"`
 }
 
+// TypeAccuracy 分题型正确率
+type TypeAccuracy struct {
+	Type     string `json:"type"`
+	Total    int    `json:"total"`
+	Correct  int    `json:"correct"`
+	Accuracy int    `json:"accuracy"` // 百分比 0-100
+}
+
+// KnowledgePoint 知识点掌握度（以课时为知识点粒度）
+type KnowledgePoint struct {
+	LessonID uint   `json:"lesson_id"`
+	Title    string `json:"title"`
+	Total    int    `json:"total"`
+	Correct  int    `json:"correct"`
+	Mastery  int    `json:"mastery"` // 百分比 0-100
+}
+
 // ExamReportDTO 考试报告
 type ExamReportDTO struct {
 	ExamID       uint                `json:"exam_id"`
@@ -73,7 +94,11 @@ type ExamReportDTO struct {
 	Passed       bool                `json:"passed"`
 	PassScore    int                 `json:"pass_score"`
 	DurationSec  int                 `json:"duration_sec"`
+	TabSwitches  int                 `json:"tab_switches"`
 	Attempts     int                 `json:"attempts"`
+	BestScore    int                 `json:"best_score"`
+	ByType       []TypeAccuracy      `json:"by_type"`
+	Knowledge    []KnowledgePoint    `json:"knowledge"`
 	Results      []ExamResultItemDTO `json:"results"`
 }
 
@@ -161,11 +186,23 @@ func (s *ExamService) AssembleUnitExam(unitID, userID uint) (*ExamDTO, error) {
 	return dto, nil
 }
 
-// SubmitExam 提交考试并判分，生成考试报告，错题自动进入错题本
-func (s *ExamService) SubmitExam(userID, examID uint, answers []ExamAnswerItem, durationSec int) (*ExamReportDTO, error) {
+// SubmitExam 提交考试并判分，生成考试报告，错题自动进入错题本。
+// 重考规则：已通过不可重考；未通过需等待 ExamRetryCoolDownHours 冷却。
+func (s *ExamService) SubmitExam(userID, examID uint, answers []ExamAnswerItem, durationSec, tabSwitches int) (*ExamReportDTO, error) {
 	exam, err := s.repo.GetExam(examID)
 	if err != nil {
 		return nil, err
+	}
+
+	// 重考冷却与已通过拦截
+	latest, err := s.repo.GetLatestExamSubmission(userID, examID)
+	if err == nil {
+		if latest.Passed {
+			return nil, ErrAlreadyPassed
+		}
+		if time.Since(latest.CreatedAt) < ExamRetryCoolDownHours*time.Hour {
+			return nil, ErrRetryCoolDown
+		}
 	}
 
 	qs, err := s.repo.ListExamQuestions(examID)
@@ -198,6 +235,7 @@ func (s *ExamService) SubmitExam(userID, examID uint, answers []ExamAnswerItem, 
 		TotalCount:  len(qs),
 		PassScore:   exam.PassScore,
 		DurationSec: durationSec,
+		TabSwitches: tabSwitches,
 		Results:     make([]ExamResultItemDTO, 0, len(qs)),
 	}
 
@@ -232,11 +270,13 @@ func (s *ExamService) SubmitExam(userID, examID uint, answers []ExamAnswerItem, 
 		report.Score = report.CorrectCount * 100 / report.TotalCount
 	}
 	report.Passed = report.Score >= exam.PassScore
+	report.ByType = computeTypeAccuracy(report.Results, exMap)
+	report.Knowledge = s.computeKnowledgePoints(report.Results, exMap)
 
-	// 错题自动进入错题本
+	// 错题自动进入错题本（标记来源为考试）
 	for _, r := range report.Results {
 		if !r.Correct {
-			_ = s.repo.UpsertWrongExercise(userID, r.ExerciseID, r.UserAnswer)
+			_ = s.repo.UpsertWrongExercise(userID, r.ExerciseID, r.UserAnswer, "exam")
 		}
 	}
 
@@ -247,6 +287,7 @@ func (s *ExamService) SubmitExam(userID, examID uint, answers []ExamAnswerItem, 
 		CorrectCount: report.CorrectCount,
 		TotalCount:   report.TotalCount,
 		DurationSec:  durationSec,
+		TabSwitches:  tabSwitches,
 		Passed:       report.Passed,
 		CreatedAt:    time.Now(),
 	}
@@ -254,9 +295,106 @@ func (s *ExamService) SubmitExam(userID, examID uint, answers []ExamAnswerItem, 
 		return nil, err
 	}
 
-	attempts, _ := s.repo.CountExamSubmissions(userID, examID)
-	report.Attempts = int(attempts)
+	report.Attempts, report.BestScore = s.examSummary(userID, examID)
 	return report, nil
+}
+
+// examSummary 统计考试尝试次数与最高分
+func (s *ExamService) examSummary(userID, examID uint) (attempts, bestScore int) {
+	subs, err := s.repo.ListExamSubmissions(userID, examID)
+	if err != nil {
+		return 0, 0
+	}
+	for _, sub := range subs {
+		if sub.Score > bestScore {
+			bestScore = sub.Score
+		}
+	}
+	return len(subs), bestScore
+}
+
+// computeTypeAccuracy 统计分题型正确率
+func computeTypeAccuracy(results []ExamResultItemDTO, exMap map[uint]model.Exercise) []TypeAccuracy {
+	order := []string{"choice", "fillblank", "code"}
+	counts := map[string]*TypeAccuracy{}
+	for _, t := range order {
+		counts[t] = &TypeAccuracy{Type: t}
+	}
+	for _, r := range results {
+		ex, ok := exMap[r.ExerciseID]
+		if !ok {
+			continue
+		}
+		item, ok := counts[ex.Type]
+		if !ok {
+			item = &TypeAccuracy{Type: ex.Type}
+			counts[ex.Type] = item
+		}
+		item.Total++
+		if r.Correct {
+			item.Correct++
+		}
+	}
+	out := make([]TypeAccuracy, 0, len(counts))
+	for _, t := range order {
+		if item, ok := counts[t]; ok && item.Total > 0 {
+			item.Accuracy = item.Correct * 100 / item.Total
+			out = append(out, *item)
+		}
+	}
+	return out
+}
+
+// computeKnowledgePoints 按课时（知识点）统计掌握度
+func (s *ExamService) computeKnowledgePoints(results []ExamResultItemDTO, exMap map[uint]model.Exercise) []KnowledgePoint {
+	type agg struct {
+		lessonID uint
+		title    string
+		total    int
+		correct  int
+	}
+	aggs := map[uint]*agg{}
+	for _, r := range results {
+		ex, ok := exMap[r.ExerciseID]
+		if !ok {
+			continue
+		}
+		a, ok := aggs[ex.LessonID]
+		if !ok {
+			a = &agg{lessonID: ex.LessonID}
+			aggs[ex.LessonID] = a
+		}
+		a.total++
+		if r.Correct {
+			a.correct++
+		}
+	}
+
+	lessonIDs := make([]uint, 0, len(aggs))
+	for id := range aggs {
+		lessonIDs = append(lessonIDs, id)
+	}
+	lessons, _ := s.repo.ListLessonsByIDs(lessonIDs)
+	titleMap := make(map[uint]string, len(lessons))
+	for _, l := range lessons {
+		titleMap[l.ID] = l.Title
+	}
+
+	points := make([]KnowledgePoint, 0, len(aggs))
+	for _, a := range aggs {
+		mastery := 0
+		if a.total > 0 {
+			mastery = a.correct * 100 / a.total
+		}
+		points = append(points, KnowledgePoint{
+			LessonID: a.lessonID,
+			Title:    titleMap[a.lessonID],
+			Total:    a.total,
+			Correct:  a.correct,
+			Mastery:  mastery,
+		})
+	}
+	return points
 }
 
 // GetReport 获取用户最近一次考试的报告概要
@@ -269,7 +407,7 @@ func (s *ExamService) GetReport(userID, examID uint) (*ExamReportDTO, error) {
 	if err != nil {
 		return nil, err
 	}
-	attempts, _ := s.repo.CountExamSubmissions(userID, examID)
+	attempts, best := s.examSummary(userID, examID)
 	return &ExamReportDTO{
 		ExamID:       exam.ID,
 		Score:        sub.Score,
@@ -278,7 +416,9 @@ func (s *ExamService) GetReport(userID, examID uint) (*ExamReportDTO, error) {
 		Passed:       sub.Passed,
 		PassScore:    exam.PassScore,
 		DurationSec:  sub.DurationSec,
-		Attempts:     int(attempts),
+		TabSwitches:  sub.TabSwitches,
+		Attempts:     attempts,
+		BestScore:    best,
 	}, nil
 }
 

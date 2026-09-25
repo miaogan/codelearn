@@ -100,6 +100,10 @@ function offsetClass(index: number) {
         <span class="btn-icon">🤖</span>
         <span>AI 模拟考试</span>
       </button>
+      <button class="btn-skill" @click="router.push(`/course/${route.params.id}/skill`)">
+        <span class="btn-icon">🧠</span>
+        <span>能力图谱</span>
+      </button>
       <button class="btn-wrong" @click="router.push('/wrong-exercises')">
         <span class="btn-icon">📝</span>
         <span>错题本</span>
@@ -240,7 +244,7 @@ function offsetClass(index: number) {
   margin-top: 24px;
 }
 
-.btn-exam, .btn-wrong {
+.btn-exam, .btn-skill, .btn-wrong {
   flex: 1;
   display: flex;
   align-items: center;
@@ -263,6 +267,15 @@ function offsetClass(index: number) {
 
 .btn-exam:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #4f46e5; }
 .btn-exam:active { transform: translateY(2px); box-shadow: 0 2px 0 #4f46e5; }
+
+.btn-skill {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 4px 0 #047857;
+}
+
+.btn-skill:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #047857; }
+.btn-skill:active { transform: translateY(2px); box-shadow: 0 2px 0 #047857; }
 
 .btn-wrong {
   background: white;

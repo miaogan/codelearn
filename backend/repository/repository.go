@@ -163,7 +163,7 @@ func (r *Repository) CountTodaySubmissions(userID uint) (int64, error) {
 
 // WrongExercise 错题本
 
-func (r *Repository) UpsertWrongExercise(userID, exerciseID uint, userAnswer string) error {
+func (r *Repository) UpsertWrongExercise(userID, exerciseID uint, userAnswer, source string) error {
 	var existing model.WrongExercise
 	result := r.db.Where("user_id = ? AND exercise_id = ?", userID, exerciseID).First(&existing)
 	if result.Error != nil {
@@ -173,6 +173,7 @@ func (r *Repository) UpsertWrongExercise(userID, exerciseID uint, userAnswer str
 			ExerciseID: exerciseID,
 			UserAnswer: userAnswer,
 			WrongCount: 1,
+			Source:     source,
 			LastWrongAt: time.Now(),
 		}).Error
 	}
@@ -182,6 +183,9 @@ func (r *Repository) UpsertWrongExercise(userID, exerciseID uint, userAnswer str
 	existing.UserAnswer = userAnswer
 	existing.LastWrongAt = time.Now()
 	existing.ReviewedAt = nil
+	if source != "" {
+		existing.Source = source
+	}
 	return r.db.Save(&existing).Error
 }
 
@@ -221,6 +225,27 @@ func (r *Repository) ListExercisesByIDs(ids []uint) ([]model.Exercise, error) {
 	}
 	err := r.db.Where("id IN ?", ids).Find(&exercises).Error
 	return exercises, err
+}
+
+// ListLessonsByIDs 批量获取课时
+func (r *Repository) ListLessonsByIDs(ids []uint) ([]model.Lesson, error) {
+	var lessons []model.Lesson
+	if len(ids) == 0 {
+		return lessons, nil
+	}
+	err := r.db.Where("id IN ?", ids).Find(&lessons).Error
+	return lessons, err
+}
+
+// ListSubmissionsForExercises 获取用户在指定习题集合上的所有提交记录
+func (r *Repository) ListSubmissionsForExercises(userID uint, exerciseIDs []uint) ([]model.Submission, error) {
+	var list []model.Submission
+	if len(exerciseIDs) == 0 {
+		return list, nil
+	}
+	err := r.db.Where("user_id = ? AND exercise_id IN ?", userID, exerciseIDs).
+		Order("created_at ASC").Find(&list).Error
+	return list, err
 }
 
 // LessonSearchResult 课程内容检索结果
@@ -347,6 +372,13 @@ func (r *Repository) GetExam(id uint) (*model.Exam, error) {
 	return &e, err
 }
 
+// ListExamsByUnit 获取单元下的所有考试
+func (r *Repository) ListExamsByUnit(unitID uint) ([]model.Exam, error) {
+	var list []model.Exam
+	err := r.db.Where("unit_id = ?", unitID).Order("created_at ASC").Find(&list).Error
+	return list, err
+}
+
 func (r *Repository) CreateExamQuestions(qs []model.ExamQuestion) error {
 	if len(qs) == 0 {
 		return nil
@@ -370,6 +402,13 @@ func (r *Repository) GetLatestExamSubmission(userID, examID uint) (*model.ExamSu
 	var s model.ExamSubmission
 	err := r.db.Where("user_id = ? AND exam_id = ?", userID, examID).Order("created_at DESC").First(&s).Error
 	return &s, err
+}
+
+// ListExamSubmissions 获取用户在指定考试上的全部提交记录（按时间正序）
+func (r *Repository) ListExamSubmissions(userID, examID uint) ([]model.ExamSubmission, error) {
+	var list []model.ExamSubmission
+	err := r.db.Where("user_id = ? AND exam_id = ?", userID, examID).Order("created_at ASC").Find(&list).Error
+	return list, err
 }
 
 func (r *Repository) CountExamSubmissions(userID, examID uint) (int64, error) {

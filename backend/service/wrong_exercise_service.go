@@ -27,6 +27,7 @@ type WrongExerciseItem struct {
 	UserAnswer   string    `json:"user_answer"`
 	CorrectAnswer string   `json:"correct_answer"`
 	Explanation  string    `json:"explanation"`
+	Source       string    `json:"source"`
 	WrongCount   int       `json:"wrong_count"`
 	Mastered     bool      `json:"mastered"`
 	LastWrongAt  time.Time `json:"last_wrong_at"`
@@ -71,6 +72,7 @@ func (s *WrongExerciseService) ListWrongExercises(userID uint, onlyUnmastered bo
 			UserAnswer:   w.UserAnswer,
 			CorrectAnswer: ex.Answer,
 			Explanation:  ex.Explanation,
+			Source:       w.Source,
 			WrongCount:   w.WrongCount,
 			Mastered:     w.Mastered,
 			LastWrongAt:  w.LastWrongAt,

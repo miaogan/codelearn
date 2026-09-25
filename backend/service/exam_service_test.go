@@ -108,7 +108,7 @@ func TestSubmitExam_Scoring(t *testing.T) {
 		answers = append(answers, ExamAnswerItem{QuestionID: q.ID, ExerciseID: q.ExerciseID, Answer: exAnswers[q.ExerciseID]})
 	}
 
-	report, err := svc.SubmitExam(user.ID, exam.ID, answers, 300)
+	report, err := svc.SubmitExam(user.ID, exam.ID, answers, 300, 0)
 	if err != nil {
 		t.Fatalf("SubmitExam failed: %v", err)
 	}
@@ -126,6 +126,12 @@ func TestSubmitExam_Scoring(t *testing.T) {
 	}
 	if report.Attempts != 1 {
 		t.Errorf("expected attempts=1, got %d", report.Attempts)
+	}
+	if len(report.ByType) == 0 {
+		t.Error("expected by_type breakdown")
+	}
+	if len(report.Knowledge) == 0 {
+		t.Error("expected knowledge breakdown")
 	}
 
 	// 答错的题应进入错题本
@@ -150,7 +156,7 @@ func TestSubmitExam_Failed(t *testing.T) {
 		answers = append(answers, ExamAnswerItem{QuestionID: q.ID, ExerciseID: q.ExerciseID, Answer: "zzz"})
 	}
 
-	report, err := svc.SubmitExam(user.ID, exam.ID, answers, 300)
+	report, err := svc.SubmitExam(user.ID, exam.ID, answers, 300, 2)
 	if err != nil {
 		t.Fatalf("SubmitExam failed: %v", err)
 	}
@@ -159,6 +165,9 @@ func TestSubmitExam_Failed(t *testing.T) {
 	}
 	if report.Passed {
 		t.Error("expected passed=false")
+	}
+	if report.TabSwitches != 2 {
+		t.Errorf("expected tab_switches 2, got %d", report.TabSwitches)
 	}
 }
 
@@ -175,7 +184,7 @@ func TestGetReport(t *testing.T) {
 	for _, q := range exam.Questions {
 		answers = append(answers, ExamAnswerItem{QuestionID: q.ID, ExerciseID: q.ExerciseID, Answer: "a"})
 	}
-	svc.SubmitExam(user.ID, exam.ID, answers, 120)
+	svc.SubmitExam(user.ID, exam.ID, answers, 120, 0)
 
 	report, err := svc.GetReport(user.ID, exam.ID)
 	if err != nil {
@@ -186,6 +195,66 @@ func TestGetReport(t *testing.T) {
 	}
 	if report.TotalCount != 3 {
 		t.Errorf("expected total 3, got %d", report.TotalCount)
+	}
+}
+
+// 未通过后 24h 内不可重考
+func TestSubmitExam_RetryCoolDown(t *testing.T) {
+	db := setupTestDB(t)
+	repo := newTestRepo(db)
+	svc := NewExamService(repo)
+
+	user := seedUser(db)
+	unitID := seedExamUnit(db, user.ID, true)
+	exam, _ := svc.AssembleUnitExam(unitID, user.ID)
+
+	// 全部答错 → 未通过
+	bad := make([]ExamAnswerItem, 0, len(exam.Questions))
+	for _, q := range exam.Questions {
+		bad = append(bad, ExamAnswerItem{QuestionID: q.ID, ExerciseID: q.ExerciseID, Answer: "zzz"})
+	}
+	if _, err := svc.SubmitExam(user.ID, exam.ID, bad, 60, 0); err != nil {
+		t.Fatalf("first submit failed: %v", err)
+	}
+
+	// 立即重考应被冷却拦截
+	_, err := svc.SubmitExam(user.ID, exam.ID, bad, 60, 0)
+	if !errors.Is(err, ErrRetryCoolDown) {
+		t.Fatalf("expected ErrRetryCoolDown, got %v", err)
+	}
+}
+
+// 已通过后不可重考
+func TestSubmitExam_AlreadyPassed(t *testing.T) {
+	db := setupTestDB(t)
+	repo := newTestRepo(db)
+	svc := NewExamService(repo)
+
+	user := seedUser(db)
+	unitID := seedExamUnit(db, user.ID, true)
+	exam, _ := svc.AssembleUnitExam(unitID, user.ID)
+
+	// 全部答对 → 通过
+	good := make([]ExamAnswerItem, 0, len(exam.Questions))
+	for _, q := range exam.Questions {
+		answer := "a"
+		if q.Type == "fillblank" {
+			answer = "42"
+		}
+		good = append(good, ExamAnswerItem{QuestionID: q.ID, ExerciseID: q.ExerciseID, Answer: answer})
+	}
+	report, err := svc.SubmitExam(user.ID, exam.ID, good, 60, 0)
+	if err != nil {
+		t.Fatalf("first submit failed: %v", err)
+	}
+	if !report.Passed {
+		t.Fatal("expected first submit to pass")
+	}
+
+	// 已通过后重考被拦截
+	_, err = svc.SubmitExam(user.ID, exam.ID, good, 60, 0)
+	if !errors.Is(err, ErrAlreadyPassed) {
+		t.Fatalf("expected ErrAlreadyPassed, got %v", err)
 	}
 }
 

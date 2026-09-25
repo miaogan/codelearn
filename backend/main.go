@@ -44,6 +44,7 @@ func main() {
 	examSvc := service.NewExamService(repo)
 	leaderboardSvc := service.NewLeaderboardService(repo)
 	certSvc := service.NewCertificateService(repo)
+	skillSvc := service.NewSkillMapService(repo)
 	generator := eino.NewExerciseGenerator(cfg)
 
 	// Eino 组件初始化
@@ -64,9 +65,10 @@ func main() {
 	examHandler := handler.NewExamHandler(examSvc, progressSvc)
 	leaderboardHandler := handler.NewLeaderboardHandler(leaderboardSvc)
 	certHandler := handler.NewCertificateHandler(certSvc)
+	skillHandler := handler.NewSkillHandler(skillSvc)
 
 	// 初始化路由
-	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler)
+	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler, skillHandler)
 
 	// 种子数据
 	if err := seedData(repo); err != nil {
