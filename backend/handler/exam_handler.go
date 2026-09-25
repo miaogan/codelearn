@@ -16,10 +16,11 @@ type ExamHandler struct {
 	progressSvc *service.ProgressService
 	certSvc     *service.CertificateService
 	analytics   *service.AnalyticsService
+	achievement *service.AchievementService
 }
 
-func NewExamHandler(examSvc *service.ExamService, progressSvc *service.ProgressService, certSvc *service.CertificateService, analytics *service.AnalyticsService) *ExamHandler {
-	return &ExamHandler{examSvc: examSvc, progressSvc: progressSvc, certSvc: certSvc, analytics: analytics}
+func NewExamHandler(examSvc *service.ExamService, progressSvc *service.ProgressService, certSvc *service.CertificateService, analytics *service.AnalyticsService, achievement *service.AchievementService) *ExamHandler {
+	return &ExamHandler{examSvc: examSvc, progressSvc: progressSvc, certSvc: certSvc, analytics: analytics, achievement: achievement}
 }
 
 // StartUnitExam 组装并开始单元考试（前置：单元内课时全部完成）
@@ -123,11 +124,16 @@ func (h *ExamHandler) SubmitExam(c *gin.Context) {
 
 	if report.Passed {
 		h.progressSvc.RecordExamXP(userID, service.ExamXP)
+		// 通过考试奖励补签卡（断签保护）
+		h.progressSvc.AwardFreezeCard(userID)
+		// 成就徽章：首次通过 / 满分
+		h.achievement.OnExamPassed(userID, report.Score)
 		// 认证考试通过 → 颁发能力认证证书（已持有则忽略）
 		if report.ExamType == service.ExamTypeCert {
 			if cert, err := h.certSvc.IssueCertificate(userID, report.CourseID, report.Score); err == nil {
 				report.Certificate = cert
 				h.analytics.Record(service.EventCertIssued, userID, report.CourseID)
+				h.achievement.OnCertIssued(userID)
 			} else if err != service.ErrAlreadyCertified {
 				log.Printf("[SubmitExam] issue certificate err=%v", err)
 			}

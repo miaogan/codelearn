@@ -50,6 +50,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		PasswordHash: string(hash),
 		Hearts:       h.maxHearts,
 		MaxHearts:    h.maxHearts,
+		FreezeCards:  2, // 新用户赠送补签卡（断签保护）
 	}
 
 	if err := h.repo.CreateUser(user); err != nil {

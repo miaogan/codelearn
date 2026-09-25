@@ -22,7 +22,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&model.Exercise{}, &model.UserProgress{}, &model.Submission{},
 		&model.WrongExercise{}, &model.XPEvent{}, &model.Exam{},
 		&model.ExamQuestion{}, &model.ExamSubmission{}, &model.Certificate{},
-		&model.AnalyticsEvent{}, &model.UserFeedback{},
+		&model.AnalyticsEvent{}, &model.UserFeedback{}, &model.Achievement{},
 	); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}

@@ -15,10 +15,11 @@ type CodeHandler struct {
 	courseSvc   *service.CourseService
 	progressSvc *service.ProgressService
 	analytics   *service.AnalyticsService
+	achievement *service.AchievementService
 }
 
-func NewCodeHandler(courseSvc *service.CourseService, progressSvc *service.ProgressService, analytics *service.AnalyticsService) *CodeHandler {
-	return &CodeHandler{courseSvc: courseSvc, progressSvc: progressSvc, analytics: analytics}
+func NewCodeHandler(courseSvc *service.CourseService, progressSvc *service.ProgressService, analytics *service.AnalyticsService, achievement *service.AchievementService) *CodeHandler {
+	return &CodeHandler{courseSvc: courseSvc, progressSvc: progressSvc, analytics: analytics, achievement: achievement}
 }
 
 type runReq struct {
@@ -94,6 +95,7 @@ func (h *CodeHandler) CompleteLesson(c *gin.Context) {
 	// 埋点：首次完成课时计入漏斗
 	if xp > 0 {
 		h.analytics.Record(service.EventLessonComplete, userID, 0)
+		h.achievement.OnLessonCompleted(userID)
 	}
 
 	hearts, _ := h.progressSvc.RestoreHeart(userID)

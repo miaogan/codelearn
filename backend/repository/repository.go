@@ -123,6 +123,10 @@ func (r *Repository) UpsertProgress(p *model.UserProgress) error {
 	var existing model.UserProgress
 	result := r.db.Where("user_id = ? AND lesson_id = ?", p.UserID, p.LessonID).First(&existing)
 	if result.Error != nil {
+		if p.Completed && p.CompletedAt == nil {
+			now := time.Now()
+			p.CompletedAt = &now
+		}
 		return r.db.Create(p).Error
 	}
 	existing.Completed = p.Completed
@@ -164,25 +168,31 @@ func (r *Repository) CountTodaySubmissions(userID uint) (int64, error) {
 // WrongExercise 错题本
 
 func (r *Repository) UpsertWrongExercise(userID, exerciseID uint, userAnswer, source string) error {
+	now := time.Now()
+	nextReview := now // 新错题立即进入今日复习，答对后按 SRS 间隔排期
 	var existing model.WrongExercise
 	result := r.db.Where("user_id = ? AND exercise_id = ?", userID, exerciseID).First(&existing)
 	if result.Error != nil {
 		// 不存在，新建
 		return r.db.Create(&model.WrongExercise{
-			UserID:     userID,
-			ExerciseID: exerciseID,
-			UserAnswer: userAnswer,
-			WrongCount: 1,
-			Source:     source,
-			LastWrongAt: time.Now(),
+			UserID:       userID,
+			ExerciseID:   exerciseID,
+			UserAnswer:   userAnswer,
+			WrongCount:   1,
+			Source:       source,
+			LastWrongAt:  now,
+			ReviewStage:  0,
+			NextReviewAt: &nextReview,
 		}).Error
 	}
-	// 已存在，增加错误次数，重置掌握状态
+	// 已存在，增加错误次数，重置掌握状态与 SRS 进度
 	existing.WrongCount++
 	existing.Mastered = false
 	existing.UserAnswer = userAnswer
-	existing.LastWrongAt = time.Now()
+	existing.LastWrongAt = now
 	existing.ReviewedAt = nil
+	existing.ReviewStage = 0
+	existing.NextReviewAt = &nextReview
 	if source != "" {
 		existing.Source = source
 	}
@@ -215,6 +225,87 @@ func (r *Repository) MarkWrongExerciseMastered(userID, exerciseID uint) error {
 func (r *Repository) CountWrongExercises(userID uint) (int64, error) {
 	var count int64
 	err := r.db.Model(&model.WrongExercise{}).Where("user_id = ? AND mastered = ?", userID, false).Count(&count).Error
+	return count, err
+}
+
+// ListDueWrongExercises 今日到期的 SRS 复习题（未掌握 且 到期或尚未排期）
+func (r *Repository) ListDueWrongExercises(userID uint, now time.Time) ([]model.WrongExercise, error) {
+	var list []model.WrongExercise
+	err := r.db.
+		Where("user_id = ? AND mastered = ? AND (next_review_at IS NULL OR next_review_at <= ?)", userID, false, now).
+		Order("last_wrong_at DESC").
+		Find(&list).Error
+	return list, err
+}
+
+// GetWrongExerciseByID 按错题记录 ID 查询（校验归属）
+func (r *Repository) GetWrongExerciseByID(userID, wrongID uint) (*model.WrongExercise, error) {
+	var w model.WrongExercise
+	err := r.db.Where("id = ? AND user_id = ?", wrongID, userID).First(&w).Error
+	return &w, err
+}
+
+// UpdateWrongExerciseReview 保存 SRS 复习结果
+func (r *Repository) UpdateWrongExerciseReview(w *model.WrongExercise) error {
+	return r.db.Save(w).Error
+}
+
+// Achievement 成就徽章
+
+func (r *Repository) CreateAchievement(a *model.Achievement) error {
+	return r.db.Create(a).Error
+}
+
+func (r *Repository) GetAchievement(userID uint, code string) (*model.Achievement, error) {
+	var a model.Achievement
+	err := r.db.Where("user_id = ? AND code = ?", userID, code).First(&a).Error
+	return &a, err
+}
+
+func (r *Repository) ListAchievements(userID uint) ([]model.Achievement, error) {
+	var list []model.Achievement
+	err := r.db.Where("user_id = ?", userID).Order("unlocked_at ASC").Find(&list).Error
+	return list, err
+}
+
+// 周报统计（过去 7 天）
+
+func (r *Repository) CountCompletedLessonsBetween(userID uint, start, end time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.UserProgress{}).
+		Where("user_id = ? AND completed = ? AND completed_at >= ? AND completed_at < ?", userID, true, start, end).
+		Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) CountSubmissionsBetween(userID uint, start, end time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.Submission{}).
+		Where("user_id = ? AND created_at >= ? AND created_at < ?", userID, start, end).
+		Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) CountExamPassedBetween(userID uint, start, end time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.ExamSubmission{}).
+		Where("user_id = ? AND passed = ? AND created_at >= ? AND created_at < ?", userID, true, start, end).
+		Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) CountWrongAddedBetween(userID uint, start, end time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.WrongExercise{}).
+		Where("user_id = ? AND created_at >= ? AND created_at < ?", userID, start, end).
+		Count(&count).Error
+	return count, err
+}
+
+// CountXPEventsByReason 某原因事件累计次数（如练习答对总数）
+func (r *Repository) CountXPEventsByReason(userID uint, reason string) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.XPEvent{}).Where("user_id = ? AND reason = ?", userID, reason).Count(&count).Error
 	return count, err
 }
 

@@ -13,6 +13,7 @@ type User struct {
 	Hearts        int        `gorm:"default:5" json:"hearts"`
 	MaxHearts     int        `gorm:"default:5" json:"max_hearts"`
 	DailyGoal     int        `gorm:"default:50" json:"daily_goal"`
+	FreezeCards   int        `gorm:"default:2" json:"freeze_cards"` // 补签卡：断签时自动消耗保住 streak
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
@@ -89,19 +90,32 @@ type Submission struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-// WrongExercise 错题本：记录用户答错的习题，支持回顾和已掌握标记
+// WrongExercise 错题本：记录用户答错的习题，支持回顾、SRS 间隔复习和已掌握标记
 type WrongExercise struct {
-	ID           uint       `gorm:"primaryKey" json:"id"`
-	UserID       uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"user_id"`
-	ExerciseID   uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"exercise_id"`
-	UserAnswer   string     `gorm:"type:text" json:"user_answer"`
-	WrongCount   int        `gorm:"default:1" json:"wrong_count"`
-	Source       string     `gorm:"size:20;default:exercise" json:"source"` // exercise / exam
-	Mastered     bool       `gorm:"default:false" json:"mastered"`
-	LastWrongAt time.Time  `json:"last_wrong_at"`
-	ReviewedAt  *time.Time `json:"reviewed_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID             uint       `gorm:"primaryKey" json:"id"`
+	UserID         uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"user_id"`
+	ExerciseID     uint       `gorm:"uniqueIndex:idx_user_exercise_wrong" json:"exercise_id"`
+	UserAnswer     string     `gorm:"type:text" json:"user_answer"`
+	WrongCount     int        `gorm:"default:1" json:"wrong_count"`
+	Source         string     `gorm:"size:20;default:exercise" json:"source"` // exercise / exam
+	Mastered       bool       `gorm:"default:false" json:"mastered"`
+	ReviewStage    int        `gorm:"default:0" json:"review_stage"` // SRS 熟练度 0-5，5 级连续答对自动掌握
+	NextReviewAt   *time.Time `json:"next_review_at,omitempty"`      // SRS 下次复习时间
+	LastWrongAt    time.Time  `json:"last_wrong_at"`
+	ReviewedAt     *time.Time `json:"reviewed_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+// Achievement 成就徽章（U12：事件驱动解锁）
+type Achievement struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	UserID      uint      `gorm:"uniqueIndex:idx_user_ach" json:"user_id"`
+	Code        string    `gorm:"size:30;uniqueIndex:idx_user_ach" json:"code"`
+	Title       string    `gorm:"size:50;not null" json:"title"`
+	Icon        string    `gorm:"size:10" json:"icon"`
+	Description string    `gorm:"size:200" json:"description"`
+	UnlockedAt  time.Time `json:"unlocked_at"`
 }
 
 // XPEvent XP 变动流水（排行榜与学习日历的数据源）

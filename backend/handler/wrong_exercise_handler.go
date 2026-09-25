@@ -13,10 +13,11 @@ import (
 
 type WrongExerciseHandler struct {
 	wrongSvc *service.WrongExerciseService
+	srsSvc   *service.SRSReviewService
 }
 
-func NewWrongExerciseHandler(wrongSvc *service.WrongExerciseService) *WrongExerciseHandler {
-	return &WrongExerciseHandler{wrongSvc: wrongSvc}
+func NewWrongExerciseHandler(wrongSvc *service.WrongExerciseService, srsSvc *service.SRSReviewService) *WrongExerciseHandler {
+	return &WrongExerciseHandler{wrongSvc: wrongSvc, srsSvc: srsSvc}
 }
 
 // List 获取错题列表
@@ -68,4 +69,42 @@ func (h *WrongExerciseHandler) Count(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"count": count})
+}
+
+// TodayReviews 今日到期的 SRS 复习题
+func (h *WrongExerciseHandler) TodayReviews(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	items, err := h.srsSvc.TodayReviews(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询复习题失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"reviews": items, "due_count": len(items)})
+}
+
+type srsReviewReq struct {
+	Correct bool `json:"correct"`
+}
+
+// SubmitReview 提交一次 SRS 复习结果（记得/忘了）
+func (h *WrongExerciseHandler) SubmitReview(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	wrongID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "复习题 ID 无效"})
+		return
+	}
+
+	var req srsReviewReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数无效"})
+		return
+	}
+
+	if err := h.srsSvc.SubmitReview(userID, uint(wrongID), req.Correct); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "复习题不存在"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "复习已记录"})
 }

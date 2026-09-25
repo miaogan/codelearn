@@ -33,6 +33,7 @@ func main() {
 		&model.XPEvent{}, &model.Exam{}, &model.ExamQuestion{},
 		&model.ExamSubmission{}, &model.Certificate{},
 		&model.AnalyticsEvent{}, &model.UserFeedback{},
+		&model.Achievement{},
 	); err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 	}
@@ -48,6 +49,9 @@ func main() {
 	courseSvc := service.NewCourseService(repo)
 	progressSvc := service.NewProgressService(repo, cfg.XPPerLesson, cfg.XPPerExercise, cfg.MaxHearts)
 	wrongSvc := service.NewWrongExerciseService(repo)
+	srsSvc := service.NewSRSReviewService(repo)
+	achievementSvc := service.NewAchievementService(repo)
+	weeklySvc := service.NewWeeklyReportService(repo)
 	examSvc := service.NewExamService(repo)
 	leaderboardSvc := service.NewLeaderboardService(repo)
 	certSvc := service.NewCertificateService(repo)
@@ -63,21 +67,23 @@ func main() {
 	// 初始化处理器
 	authHandler := handler.NewAuthHandler(repo, cfg.JWTSecret, cfg.MaxHearts, analyticsSvc)
 	courseHandler := handler.NewCourseHandler(courseSvc)
-	exerciseHandler := handler.NewExerciseHandler(courseSvc, progressSvc, generator)
-	codeHandler := handler.NewCodeHandler(courseSvc, progressSvc, analyticsSvc)
+	exerciseHandler := handler.NewExerciseHandler(courseSvc, progressSvc, generator, achievementSvc)
+	codeHandler := handler.NewCodeHandler(courseSvc, progressSvc, analyticsSvc, achievementSvc)
 	progressHandler := handler.NewProgressHandler(progressSvc)
-	wrongHandler := handler.NewWrongExerciseHandler(wrongSvc)
+	wrongHandler := handler.NewWrongExerciseHandler(wrongSvc, srsSvc)
 	adaptiveHandler := handler.NewAdaptiveHandler(adaptiveAdvisor, repo)
 	tutorHandler := handler.NewTutorHandler(tutorAgent)
 	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeRAG)
-	examHandler := handler.NewExamHandler(examSvc, progressSvc, certSvc, analyticsSvc)
+	examHandler := handler.NewExamHandler(examSvc, progressSvc, certSvc, analyticsSvc, achievementSvc)
 	leaderboardHandler := handler.NewLeaderboardHandler(leaderboardSvc)
 	certHandler := handler.NewCertificateHandler(certSvc)
 	skillHandler := handler.NewSkillHandler(skillSvc)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc, cfg.AdminToken)
+	achievementHandler := handler.NewAchievementHandler(achievementSvc)
+	weeklyHandler := handler.NewWeeklyReportHandler(weeklySvc)
 
 	// 初始化路由
-	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler, skillHandler, analyticsHandler)
+	r := router.Setup(cfg, authHandler, courseHandler, exerciseHandler, codeHandler, progressHandler, wrongHandler, adaptiveHandler, tutorHandler, knowledgeHandler, examHandler, leaderboardHandler, certHandler, skillHandler, analyticsHandler, achievementHandler, weeklyHandler)
 
 	// 种子数据
 	if err := seedData(repo); err != nil {

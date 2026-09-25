@@ -22,6 +22,9 @@ const (
 
 	// MaxExerciseXPEventsPerDay 每日练习题 XP 事件上限（防刷）
 	MaxExerciseXPEventsPerDay = 10
+
+	// MaxFreezeCards 补签卡持有上限
+	MaxFreezeCards = 5
 )
 
 func NewProgressService(repo *repository.Repository, xpLesson, xpExercise, maxHearts int) *ProgressService {
@@ -39,6 +42,7 @@ type UserStats struct {
 	Hearts           int   `json:"hearts"`
 	MaxHearts        int   `json:"max_hearts"`
 	DailyGoal        int   `json:"daily_goal"`
+	FreezeCards      int   `json:"freeze_cards"`
 	TodayXP          int   `json:"today_xp"`
 	CompletedToday   int   `json:"completed_today"`
 	SubmissionsToday int   `json:"submissions_today"`
@@ -58,13 +62,14 @@ func (s *ProgressService) GetStats(userID uint) (*UserStats, error) {
 	todayXP, _ := s.repo.SumXPBetween(userID, dayStart, dayStart.AddDate(0, 0, 1))
 
 	return &UserStats{
-		XP:             user.XP,
-		StreakDays:     user.StreakDays,
-		Hearts:         user.Hearts,
-		MaxHearts:      user.MaxHearts,
-		DailyGoal:      user.DailyGoal,
-		TodayXP:        todayXP,
-		CompletedToday: int(completed),
+		XP:               user.XP,
+		StreakDays:       user.StreakDays,
+		Hearts:           user.Hearts,
+		MaxHearts:        user.MaxHearts,
+		DailyGoal:        user.DailyGoal,
+		FreezeCards:      user.FreezeCards,
+		TodayXP:          todayXP,
+		CompletedToday:   int(completed),
 		SubmissionsToday: int(submissions),
 	}, nil
 }
@@ -193,7 +198,7 @@ func (s *ProgressService) ListProgress(userID uint) ([]model.UserProgress, error
 	return s.repo.ListProgressByUser(userID)
 }
 
-// updateStreak 更新连续打卡天数
+// updateStreak 更新连续打卡天数；断签时若持有补签卡则自动消耗一张并保住 streak（多邻国式冻结）
 func updateStreak(user *model.User) {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -213,6 +218,9 @@ func updateStreak(user *model.User) {
 		if diff < 2 {
 			// 连续打卡
 			user.StreakDays++
+		} else if user.FreezeCards > 0 {
+			// 断了但持有补签卡：消耗一张，streak 保持不变（冻结保护）
+			user.FreezeCards--
 		} else {
 			// 断了
 			user.StreakDays = 1
@@ -221,6 +229,19 @@ func updateStreak(user *model.User) {
 		user.StreakDays = 1
 	}
 	user.LastStreakAt = &today
+}
+
+// AwardFreezeCard 奖励一张补签卡（上限 MaxFreezeCards），返回当前持有数
+func (s *ProgressService) AwardFreezeCard(userID uint) int {
+	user, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		return 0
+	}
+	if user.FreezeCards < MaxFreezeCards {
+		user.FreezeCards++
+		_ = s.repo.UpdateUser(user)
+	}
+	return user.FreezeCards
 }
 
 func normalize(s string) string {
