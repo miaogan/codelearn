@@ -233,8 +233,8 @@ func (h *ExerciseHandler) ExamSubmit(c *gin.Context) {
 		// 非标准客观题类型（subjective, short_answer, essay 等）都用 AI 判定
 		isObjective := ex.Type == "choice" || ex.Type == "fillblank" || ex.Type == "order"
 		if isObjective {
-			// 客观题直接比对
-			correct, _, _ := h.courseSvc.SubmitAnswer(userID, item.ExerciseID, item.Answer)
+			// 客观题直接比对（考试作答，不污染练习流水）
+			correct, _, _ := h.courseSvc.SubmitExamAnswer(userID, item.ExerciseID, item.Answer)
 			result.Correct = correct
 		} else {
 			// 主观题/其他类型调用 AI 判定（只传题目和学生作答，不传参考答案）

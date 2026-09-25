@@ -1,6 +1,8 @@
 package service
 
 import (
+	"time"
+
 	"codelearn/model"
 	"codelearn/repository"
 )
@@ -30,17 +32,29 @@ type PortfolioCourse struct {
 	ProjectCount int    `json:"project_count"`
 }
 
+// PortfolioProject 公开档案中的项目作品（仅暴露公开字段）
+type PortfolioProject struct {
+	ID          uint       `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	CourseTitle string     `json:"course_title"`
+	Language    string     `json:"language"`
+	Status      string     `json:"status"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	RunCount    int        `json:"run_count"`
+}
+
 // Portfolio 公开能力档案
 type Portfolio struct {
-	Username     string            `json:"username"`
-	XP           int               `json:"xp"`
-	StreakDays   int               `json:"streak_days"`
-	TitleName    string            `json:"title_name"`
-	TitleIcon    string            `json:"title_icon"`
-	TitleLevel   int               `json:"title_level"`
-	BadgeCount   int               `json:"badge_count"`
-	Courses      []PortfolioCourse `json:"courses"`
-	Projects     []model.Project   `json:"projects"`
+	Username     string              `json:"username"`
+	XP           int                 `json:"xp"`
+	StreakDays   int                 `json:"streak_days"`
+	TitleName    string              `json:"title_name"`
+	TitleIcon    string              `json:"title_icon"`
+	TitleLevel   int                 `json:"title_level"`
+	BadgeCount   int                 `json:"badge_count"`
+	Courses      []PortfolioCourse   `json:"courses"`
+	Projects     []PortfolioProject  `json:"projects"`
 }
 
 // Get 生成用户公开档案（不暴露隐私信息）
@@ -64,7 +78,7 @@ func (s *PortfolioService) Get(username string) (*Portfolio, error) {
 		TitleLevel: level,
 		BadgeCount: len(badges),
 		Courses:    make([]PortfolioCourse, 0, len(courses)),
-		Projects:   projects,
+		Projects:   trimProjects(projects),
 	}
 
 	for _, c := range courses {
@@ -114,6 +128,24 @@ func (s *PortfolioService) Get(username string) (*Portfolio, error) {
 		pf.Courses = append(pf.Courses, item)
 	}
 	return pf, nil
+}
+
+// trimProjects 仅保留项目作品的公开字段
+func trimProjects(projects []model.Project) []PortfolioProject {
+	out := make([]PortfolioProject, 0, len(projects))
+	for _, p := range projects {
+		out = append(out, PortfolioProject{
+			ID:          p.ID,
+			Title:       p.Title,
+			Description: p.Description,
+			CourseTitle: p.CourseTitle,
+			Language:    p.Language,
+			Status:      p.Status,
+			CompletedAt: p.CompletedAt,
+			RunCount:    p.RunCount,
+		})
+	}
+	return out
 }
 
 // courseExamPassed 判断某用户是否通过某单元考试

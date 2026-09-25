@@ -79,7 +79,7 @@ func (s *PredictionService) Predict(userID, courseID uint) (*ExamPrediction, err
 		accuracy = correctSub * 100 / totalSub
 	}
 
-	// 错题掌握率
+	// 错题掌握率（错题本按习题唯一，含练习与考试来源；练习正确率已由考试作答不写流水保证纯净）
 	wrongs, _ := s.repo.ListWrongExercises(userID, false)
 	masteredWrong := 0
 	for _, w := range wrongs {

@@ -150,6 +150,20 @@ func (s *CourseService) SubmitAnswer(userID, exerciseID uint, userAnswer string)
 	return correct, ex.Explanation, nil
 }
 
+// SubmitExamAnswer 考试作答：不写入练习流水（保持练习正确率口径纯净），
+// 错题仅标记来源为考试，避免污染练习统计（U7 预测依赖）。
+func (s *CourseService) SubmitExamAnswer(userID, exerciseID uint, userAnswer string) (correct bool, explanation string, err error) {
+	ex, err := s.repo.GetExercise(exerciseID)
+	if err != nil {
+		return false, "", err
+	}
+	correct = checkAnswer(ex, userAnswer)
+	if !correct {
+		_ = s.repo.UpsertWrongExercise(userID, exerciseID, userAnswer, "exam")
+	}
+	return correct, ex.Explanation, nil
+}
+
 func (s *CourseService) GetExercise(exerciseID uint) (*model.Exercise, error) {
 	return s.repo.GetExercise(exerciseID)
 }
