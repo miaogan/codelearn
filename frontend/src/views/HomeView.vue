@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { courseApi, userApi, wrongApi, skillApi } from '@/api/client'
+import { courseApi, userApi, wrongApi, skillApi, srsApi } from '@/api/client'
 import type { Course, SkillTreeLesson, WrongExerciseItem, ReviewRecommendation } from '@/types'
 
 const router = useRouter()
@@ -10,17 +10,19 @@ const loading = ref(true)
 const todayXP = ref(0)
 const dailyGoal = ref(50)
 const streakDays = ref(0)
+const srsDueCount = ref(0)
 const nextLesson = ref<{ lessonId: number; courseId: number; courseTitle: string; lessonTitle: string } | null>(null)
 const recommendWrong = ref<WrongExerciseItem[]>([])
 const recommendReview = ref<ReviewRecommendation[]>([])
 
 onMounted(async () => {
   try {
-    const [coursesRes, statsRes, wrongRes, reviewRes] = await Promise.all([
+    const [coursesRes, statsRes, wrongRes, reviewRes, srsRes] = await Promise.all([
       courseApi.list(),
       userApi.stats(),
       wrongApi.list(true),
       skillApi.recommendations(),
+      srsApi.reviews(),
     ])
     courses.value = coursesRes.data.courses
     todayXP.value = statsRes.data.today_xp
@@ -28,6 +30,7 @@ onMounted(async () => {
     streakDays.value = statsRes.data.streak_days
     recommendWrong.value = wrongRes.data.wrong_exercises.slice(0, 3)
     recommendReview.value = reviewRes.data.recommendations.slice(0, 3)
+    srsDueCount.value = srsRes.data.due_count || 0
     await findNextLesson()
   } catch (e) {
     // ignore
@@ -138,6 +141,36 @@ const CIRC = 2 * Math.PI * R
             🏆 排行榜
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- 今日快捷入口 -->
+    <div class="quick-strip">
+      <div class="quick-item srs" @click="router.push('/srs-reviews')">
+        <span class="quick-icon">🧠</span>
+        <div class="quick-body">
+          <div class="quick-title">今日复习</div>
+          <div class="quick-meta" :class="{ urgent: srsDueCount > 0 }">
+            {{ srsDueCount > 0 ? srsDueCount + ' 题待复习' : '今日无待复习' }}
+          </div>
+        </div>
+        <span class="quick-arrow">→</span>
+      </div>
+      <div class="quick-item report" @click="router.push('/weekly-report')">
+        <span class="quick-icon">📊</span>
+        <div class="quick-body">
+          <div class="quick-title">学习周报</div>
+          <div class="quick-meta">看看本周的学习成果</div>
+        </div>
+        <span class="quick-arrow">→</span>
+      </div>
+      <div class="quick-item badge" @click="router.push('/achievements')">
+        <span class="quick-icon">🏆</span>
+        <div class="quick-body">
+          <div class="quick-title">成就墙</div>
+          <div class="quick-meta">收集徽章，提升段位</div>
+        </div>
+        <span class="quick-arrow">→</span>
       </div>
     </div>
 
@@ -325,6 +358,38 @@ const CIRC = 2 * Math.PI * R
 /* 推荐练习 */
 .recommend { margin-bottom: 28px; }
 .section-title { font-size: 18px; font-weight: 800; margin-bottom: 12px; }
+
+/* 今日快捷入口 */
+.quick-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.quick-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.quick-item:hover { border-color: var(--primary); transform: translateY(-2px); }
+.quick-item.srs { border-color: #a78bfa; }
+.quick-item.srs:hover { border-color: #7c3aed; }
+.quick-item.report { border-color: #6ee7b7; }
+.quick-item.report:hover { border-color: #10b981; }
+.quick-item.badge { border-color: #fcd34d; }
+.quick-item.badge:hover { border-color: #f59e0b; }
+.quick-icon { font-size: 26px; flex-shrink: 0; }
+.quick-body { flex: 1; min-width: 0; }
+.quick-title { font-size: 14px; font-weight: 800; }
+.quick-meta { font-size: 11px; color: var(--text-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-meta.urgent { color: var(--danger); font-weight: 800; }
+.quick-arrow { color: var(--text-light); }
 .recommend-list { display: flex; flex-direction: column; gap: 10px; }
 .recommend-item {
   display: flex;
@@ -397,5 +462,6 @@ const CIRC = 2 * Math.PI * R
   .daily-card { flex-direction: column; text-align: center; }
   .daily-head { justify-content: center; }
   .daily-actions { justify-content: center; }
+  .quick-strip { grid-template-columns: 1fr; }
 }
 </style>

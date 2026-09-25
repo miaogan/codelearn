@@ -5,7 +5,7 @@ import type {
   User, Course, LearningPath, Lesson, Exercise,
   UserStats, RunResult, JudgeResult, SubmitResult, WrongExerciseItem, ExamResult,
   Exam, ExamReport, LeaderboardEntry, CalendarDay, Certificate, CertStatus,
-  SkillMap, ReviewRecommendation,
+  SkillMap, ReviewRecommendation, SRSReviewItem, AchievementSummary, WeeklyReport,
 } from '@/types'
 
 const api = axios.create({
@@ -159,6 +159,22 @@ export const knowledgeApi = {
 export const feedbackApi = {
   submit: (data: { category: string; content: string; contact?: string }) =>
     api.post<{ message: string }>('/feedback', data),
+}
+
+// ===== Sprint 6：SRS 复习 / 成就徽章 / 学习周报 =====
+
+export const srsApi = {
+  reviews: () => api.get<{ reviews: SRSReviewItem[]; due_count: number }>('/users/me/srs/reviews'),
+  submitReview: (wrongId: number, correct: boolean) =>
+    api.post<{ message: string }>(`/wrong-exercises/${wrongId}/srs-review`, { correct }),
+}
+
+export const achievementApi = {
+  summary: () => api.get<AchievementSummary>('/users/me/achievements'),
+}
+
+export const weeklyReportApi = {
+  get: () => api.get<WeeklyReport>('/users/me/weekly-report'),
 }
 
 export default api

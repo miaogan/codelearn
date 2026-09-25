@@ -49,6 +49,10 @@ onMounted(loadWrongCount)
           <span class="icon">❤️</span>
           <span class="value">{{ auth.stats.hearts }}/{{ auth.stats.max_hearts }}</span>
         </div>
+        <div class="stat-item freeze" title="补签卡（断签时自动使用，保住连续打卡）">
+          <span class="icon">🧊</span>
+          <span class="value">{{ auth.stats.freeze_cards }}</span>
+        </div>
         <div class="stat-item wrong" title="错题本" @click="router.push('/wrong-exercises')">
           <span class="icon">📝</span>
           <span class="value" :class="{ 'has-wrong': wrongCount > 0 }">{{ wrongCount }}</span>
@@ -114,6 +118,10 @@ onMounted(loadWrongCount)
 
 .stat-item.wrong {
   cursor: pointer;
+}
+
+.stat-item.freeze .icon {
+  filter: hue-rotate(200deg);
 }
 
 .stat-item.wrong .value.has-wrong {

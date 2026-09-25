@@ -87,6 +87,7 @@ export interface UserStats {
   hearts: number
   max_hearts: number
   daily_goal: number
+  freeze_cards: number
   today_xp: number
   completed_today: number
 }
@@ -266,4 +267,61 @@ export interface ReviewRecommendation {
   weak_count: number
   mastery: number
   reason: string
+}
+
+// ===== Sprint 6：SRS 复习 / 成就徽章 / 学习周报 =====
+
+export interface SRSReviewItem {
+  id: number
+  exercise_id: number
+  type: string
+  question: string
+  options: string
+  correct_answer: string
+  explanation: string
+  review_stage: number
+}
+
+export interface AchievementBadge {
+  code: string
+  title: string
+  icon: string
+  description: string
+  unlocked_at: string
+}
+
+export interface AchievementTitle {
+  name: string
+  icon: string
+  level: number
+  current_xp: number
+  xp_to_next: number
+  next_name?: string
+}
+
+export interface AchievementSummary {
+  badges: AchievementBadge[]
+  total: number
+  title: AchievementTitle
+}
+
+export interface WeakTopic {
+  lesson_id: number
+  title: string
+  wrong_count: number
+}
+
+export interface WeeklyReport {
+  week_start: string
+  week_end: string
+  xp_total: number
+  active_days: number
+  lessons_completed: number
+  exercises_done: number
+  exams_passed: number
+  wrong_added: number
+  streak_days: number
+  weak_topics: WeakTopic[]
+  summary: string
+  advice: string
 }

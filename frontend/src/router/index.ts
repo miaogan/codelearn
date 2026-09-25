@@ -120,6 +120,24 @@ const router = createRouter({
       component: () => import('@/views/KnowledgeView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/achievements',
+      name: 'achievements',
+      component: () => import('@/views/AchievementsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/srs-reviews',
+      name: 'srs-reviews',
+      component: () => import('@/views/SRSReviewView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/weekly-report',
+      name: 'weekly-report',
+      component: () => import('@/views/WeeklyReportView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

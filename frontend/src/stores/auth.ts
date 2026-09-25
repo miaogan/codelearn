@@ -12,6 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
     hearts: 5,
     max_hearts: 5,
     daily_goal: 50,
+    freeze_cards: 0,
     today_xp: 0,
     completed_today: 0,
   })

@@ -259,6 +259,44 @@ func TestUpdateStreak_Broken(t *testing.T) {
 	}
 }
 
+func TestUpdateStreak_FreezeCardProtects(t *testing.T) {
+	now := time.Now()
+	threeDaysAgo := time.Date(now.Year(), now.Month(), now.Day()-3, 0, 0, 0, 0, now.Location())
+	user := &model.User{StreakDays: 5, LastStreakAt: &threeDaysAgo, FreezeCards: 1}
+
+	updateStreak(user)
+
+	// 断签但持有补签卡：streak 保持，消耗 1 张
+	if user.StreakDays != 5 {
+		t.Errorf("expected streak=5 (frozen), got %d", user.StreakDays)
+	}
+	if user.FreezeCards != 0 {
+		t.Errorf("expected freeze card consumed, got %d", user.FreezeCards)
+	}
+	if user.LastStreakAt == nil {
+		t.Error("expected LastStreakAt updated to today")
+	}
+}
+
+func TestAwardFreezeCard_Cap(t *testing.T) {
+	db := setupTestDB(t)
+	repo := newTestRepo(db)
+	svc := NewProgressService(repo, 20, 10, 5)
+
+	user := seedUser(db)
+	user.FreezeCards = MaxFreezeCards
+	db.Save(user)
+
+	got := svc.AwardFreezeCard(user.ID)
+	if got != MaxFreezeCards {
+		t.Errorf("expected capped at %d, got %d", MaxFreezeCards, got)
+	}
+	updated, _ := repo.GetUserByID(user.ID)
+	if updated.FreezeCards != MaxFreezeCards {
+		t.Errorf("expected freeze cards=%d, got %d", MaxFreezeCards, updated.FreezeCards)
+	}
+}
+
 func TestUpdateDailyGoal(t *testing.T) {
 	db := setupTestDB(t)
 	repo := newTestRepo(db)

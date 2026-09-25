@@ -129,6 +129,9 @@ function logout() {
 
     <div class="actions">
       <router-link to="/" class="btn-secondary">继续学习</router-link>
+      <router-link to="/achievements" class="btn-secondary">🏆 成就</router-link>
+      <router-link to="/srs-reviews" class="btn-secondary">🧠 复习</router-link>
+      <router-link to="/weekly-report" class="btn-secondary">📊 周报</router-link>
       <router-link to="/leaderboard" class="btn-secondary">排行榜</router-link>
       <router-link to="/certificates" class="btn-secondary">🎖️ 我的证书</router-link>
       <router-link to="/feedback" class="btn-secondary">📮 问题反馈</router-link>
