@@ -63,6 +63,29 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/cert-exam/:courseId',
+      name: 'cert-exam',
+      component: () => import('@/views/UnitExamView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/certificates',
+      name: 'certificates',
+      component: () => import('@/views/MyCertificatesView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/certificate/:no',
+      name: 'certificate-detail',
+      component: () => import('@/views/CertificateDetailView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/verify',
+      name: 'verify',
+      component: () => import('@/views/VerifyView.vue'),
+    },
+    {
       path: '/wrong-exercises',
       name: 'wrong-exercises',
       component: () => import('@/views/WrongExercisesView.vue'),

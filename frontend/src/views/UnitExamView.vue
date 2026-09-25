@@ -19,6 +19,8 @@ const tabSwitches = ref(0)
 let timer: ReturnType<typeof setInterval> | undefined
 
 const unitId = Number(route.params.unitId)
+const courseId = Number(route.params.courseId)
+const isCert = route.name === 'cert-exam'
 
 // 防作弊：考试期间检测页面失焦/切屏
 function onVisibilityChange() {
@@ -34,7 +36,9 @@ function onVisibilityChange() {
 onMounted(async () => {
   document.addEventListener('visibilitychange', onVisibilityChange)
   try {
-    exam.value = await (await examApi.startUnit(unitId)).data
+    exam.value = isCert
+      ? (await examApi.startCert(courseId)).data
+      : (await examApi.startUnit(unitId)).data
     phase.value = 'intro'
   } catch (e: any) {
     errorMsg.value = e.response?.data?.error || '创建考试失败'
@@ -152,7 +156,8 @@ function accClass(v: number) {
         <div class="meta-item"><span class="meta-icon">📋</span>{{ totalQuestions }} 道题</div>
         <div class="meta-item"><span class="meta-icon">✅</span>及格线 {{ exam.pass_score }} 分</div>
       </div>
-      <p class="intro-tip">考试期间不扣心数，请独立完成。提交后自动生成成绩报告，错题会进入错题本。</p>
+      <p class="intro-tip" v-if="isCert">本考试覆盖课程全部单元知识点，通过（≥{{ exam.pass_score }} 分）后将颁发能力认证证书。考试期间不扣心数，请独立完成。</p>
+      <p class="intro-tip" v-else>考试期间不扣心数，请独立完成。提交后自动生成成绩报告，错题会进入错题本。</p>
       <button class="btn-primary start-btn" @click="startExam">开始考试</button>
     </div>
 
@@ -230,6 +235,15 @@ function accClass(v: number) {
         ⚠️ 本次考试检测到 {{ report.tab_switches }} 次切屏，已记录在成绩中。
       </div>
 
+      <!-- 认证考试通过 → 证书颁发 -->
+      <div v-if="isCert && report.certificate" class="cert-award">
+        <span class="cert-award-icon">🎖️</span>
+        <div>
+          <div class="cert-award-title">恭喜获得「{{ report.certificate.course_title }}」认证证书</div>
+          <div class="cert-award-sub">等级：{{ levelText(report.certificate.level) }} · 证书编号：{{ report.certificate.cert_no }}</div>
+        </div>
+      </div>
+
       <!-- 分题型正确率 -->
       <div class="analy-section" v-if="report.by_type && report.by_type.length > 0">
         <h3 class="analy-title">📊 分题型表现</h3>
@@ -277,7 +291,8 @@ function accClass(v: number) {
       </div>
 
       <div class="result-actions">
-        <button class="btn-primary" @click="router.push('/')">返回首页</button>
+        <button v-if="isCert && report.certificate" class="btn-primary" @click="router.push(`/certificate/${report!.certificate!.cert_no}`)">查看我的证书</button>
+        <button v-else class="btn-primary" @click="router.push('/')">返回首页</button>
         <button class="btn-secondary" @click="router.push('/wrong-exercises')">去复习错题</button>
       </div>
     </div>
@@ -413,6 +428,21 @@ function accClass(v: number) {
   font-weight: 700;
   margin-top: 12px;
 }
+
+.cert-award {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 2px solid #fbbf24;
+  border-radius: var(--radius-sm);
+}
+.cert-award-icon { font-size: 36px; }
+.cert-award-title { font-weight: 900; color: #92400e; }
+.cert-award-sub { font-size: 13px; color: #b45309; margin-top: 2px; }
 
 .analy-section { text-align: left; margin-top: 18px; }
 .analy-title { font-size: 15px; font-weight: 800; margin-bottom: 10px; }

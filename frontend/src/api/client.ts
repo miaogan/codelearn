@@ -4,7 +4,7 @@ import router from '@/router'
 import type {
   User, Course, LearningPath, Lesson, Exercise,
   UserStats, RunResult, JudgeResult, SubmitResult, WrongExerciseItem, ExamResult,
-  Exam, ExamReport, LeaderboardEntry, CalendarDay, Certificate,
+  Exam, ExamReport, LeaderboardEntry, CalendarDay, Certificate, CertStatus,
   SkillMap, ReviewRecommendation,
 } from '@/types'
 
@@ -101,6 +101,10 @@ export const adaptiveApi = {
 export const examApi = {
   startUnit: (unitId: number) =>
     api.post<Exam>(`/units/${unitId}/exam`),
+  startCert: (courseId: number) =>
+    api.post<Exam>(`/courses/${courseId}/cert-exam`),
+  certStatus: (courseId: number) =>
+    api.get<CertStatus>(`/courses/${courseId}/cert-status`),
   submit: (examId: number, answers: { question_id: number; exercise_id: number; answer: string }[], durationSec = 0, tabSwitches = 0) =>
     api.post<ExamReport>(`/exams/${examId}/submit`, { answers, duration_sec: durationSec, tab_switches: tabSwitches }),
   report: (examId: number) =>

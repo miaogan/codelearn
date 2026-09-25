@@ -62,7 +62,7 @@ func main() {
 	adaptiveHandler := handler.NewAdaptiveHandler(adaptiveAdvisor, repo)
 	tutorHandler := handler.NewTutorHandler(tutorAgent)
 	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeRAG)
-	examHandler := handler.NewExamHandler(examSvc, progressSvc)
+	examHandler := handler.NewExamHandler(examSvc, progressSvc, certSvc)
 	leaderboardHandler := handler.NewLeaderboardHandler(leaderboardSvc)
 	certHandler := handler.NewCertificateHandler(certSvc)
 	skillHandler := handler.NewSkillHandler(skillSvc)

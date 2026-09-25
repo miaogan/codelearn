@@ -437,6 +437,12 @@ func (r *Repository) ListCertificatesByUser(userID uint) ([]model.Certificate, e
 	return list, err
 }
 
+func (r *Repository) GetCertificate(userID, courseID uint) (*model.Certificate, error) {
+	var c model.Certificate
+	err := r.db.Where("user_id = ? AND course_id = ?", userID, courseID).First(&c).Error
+	return &c, err
+}
+
 func (r *Repository) CountCertificates(userID, courseID uint) (int64, error) {
 	var count int64
 	err := r.db.Model(&model.Certificate{}).

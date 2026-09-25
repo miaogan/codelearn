@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { courseApi } from '@/api/client'
-import type { LearningPath, SkillTreeLesson } from '@/types'
+import { courseApi, examApi } from '@/api/client'
+import type { CertStatus, LearningPath, SkillTreeLesson } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const path = ref<LearningPath | null>(null)
+const certStatus = ref<CertStatus | null>(null)
 const loading = ref(true)
 
 onMounted(async () => {
@@ -16,9 +17,14 @@ onMounted(async () => {
     path.value = res.data
   } catch (e) {
     // ignore
-  } finally {
-    loading.value = false
   }
+  try {
+    const res = await examApi.certStatus(id)
+    certStatus.value = res.data
+  } catch (e) {
+    // ignore
+  }
+  loading.value = false
 })
 
 function enterLesson(lesson: SkillTreeLesson) {
@@ -37,9 +43,20 @@ function enterUnitExam(unit: { id: number; lessons: SkillTreeLesson[] }) {
   }
 }
 
+function enterCertExam() {
+  if (certStatus.value?.eligible) {
+    router.push(`/cert-exam/${route.params.id}`)
+  }
+}
+
 function offsetClass(index: number) {
   const offsets = ['center', 'left', 'right']
   return offsets[index % 3]
+}
+
+function certLevelText(level?: string) {
+  const map: Record<string, string> = { beginner: '入门', intermediate: '进阶', advanced: '熟练' }
+  return (level && map[level]) || level || ''
 }
 </script>
 
@@ -90,6 +107,29 @@ function offsetClass(index: number) {
               <span v-else class="lock">🔒</span>
             </div>
             <div class="node-label">单元考试</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 课程认证考试节点：全部单元考试通过后解锁 -->
+    <div class="cert-block" v-if="certStatus">
+      <div
+        class="cert-node"
+        :class="{ eligible: certStatus.eligible, certified: certStatus.certified, locked: !certStatus.eligible }"
+        @click="enterCertExam"
+      >
+        <div class="cert-circle">
+          <span v-if="certStatus.certified" class="cert-icon">🎖️</span>
+          <span v-else-if="certStatus.eligible" class="cert-icon">🏆</span>
+          <span v-else class="lock">🔒</span>
+        </div>
+        <div class="cert-info">
+          <div class="cert-title">课程认证考试</div>
+          <div class="cert-desc">
+            <template v-if="certStatus.certified">已获得认证 · 等级：{{ certLevelText(certStatus.certificate?.level) }}</template>
+            <template v-else-if="certStatus.eligible">全部单元考试已通过，可以挑战！</template>
+            <template v-else>通过全部 {{ certStatus.units_total }} 个单元考试后解锁（已通过 {{ certStatus.units_passed }}）</template>
           </div>
         </div>
       </div>
@@ -237,6 +277,66 @@ function offsetClass(index: number) {
 }
 
 .back-btn { margin-top: 32px; width: 100%; }
+
+/* 课程认证考试节点 */
+.cert-block {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+.cert-node {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+  padding: 18px 20px;
+  background: white;
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 0 #e5e5e5;
+}
+.cert-node.eligible:not(.certified) {
+  border-color: #f59e0b;
+  box-shadow: 0 4px 0 #d97706;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+}
+.cert-node.certified {
+  border-color: #f59e0b;
+  box-shadow: 0 4px 0 #d97706;
+  background: linear-gradient(135deg, #fffbeb, #fde68a);
+}
+.cert-node.locked {
+  pointer-events: none;
+  opacity: 0.75;
+  background: var(--bg-gray);
+}
+.cert-node.eligible:hover { transform: translateY(-2px); }
+.cert-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  box-shadow: 0 4px 0 #b45309;
+  flex-shrink: 0;
+}
+.cert-node.locked .cert-circle {
+  background: #e5e5e5;
+  color: #bbb;
+  box-shadow: 0 4px 0 #d4d4d4;
+}
+.cert-icon { font-size: 30px; }
+.cert-info { text-align: left; }
+.cert-title { font-size: 17px; font-weight: 900; }
+.cert-desc { font-size: 13px; color: var(--text-light); margin-top: 2px; }
+.cert-node.eligible .cert-desc { color: #92400e; }
 
 .action-bar {
   display: flex;

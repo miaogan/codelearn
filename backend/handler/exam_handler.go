@@ -14,10 +14,11 @@ import (
 type ExamHandler struct {
 	examSvc     *service.ExamService
 	progressSvc *service.ProgressService
+	certSvc     *service.CertificateService
 }
 
-func NewExamHandler(examSvc *service.ExamService, progressSvc *service.ProgressService) *ExamHandler {
-	return &ExamHandler{examSvc: examSvc, progressSvc: progressSvc}
+func NewExamHandler(examSvc *service.ExamService, progressSvc *service.ProgressService, certSvc *service.CertificateService) *ExamHandler {
+	return &ExamHandler{examSvc: examSvc, progressSvc: progressSvc, certSvc: certSvc}
 }
 
 // StartUnitExam 组装并开始单元考试（前置：单元内课时全部完成）
@@ -43,6 +44,48 @@ func (h *ExamHandler) StartUnitExam(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, exam)
+}
+
+// StartCertExam 组装并开始课程认证考试（前置：课程全部单元考试通过）
+func (h *ExamHandler) StartCertExam(c *gin.Context) {
+	courseID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "课程 ID 无效"})
+		return
+	}
+	userID := middleware.GetUserID(c)
+
+	exam, err := h.examSvc.AssembleCertExam(uint(courseID), userID)
+	if err != nil {
+		switch err {
+		case service.ErrCertUnitsNotPassed:
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case service.ErrNoQuestions:
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		default:
+			log.Printf("[StartCertExam] courseID=%d err=%v", courseID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建认证考试失败"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, exam)
+}
+
+// CertStatus 查询课程认证状态（是否具备考试资格、是否已持证）
+func (h *ExamHandler) CertStatus(c *gin.Context) {
+	courseID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "课程 ID 无效"})
+		return
+	}
+	userID := middleware.GetUserID(c)
+
+	status, err := h.examSvc.CertStatus(uint(courseID), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询认证状态失败"})
+		return
+	}
+	c.JSON(http.StatusOK, status)
 }
 
 type unitExamSubmitReq struct {
@@ -79,6 +122,14 @@ func (h *ExamHandler) SubmitExam(c *gin.Context) {
 
 	if report.Passed {
 		h.progressSvc.RecordExamXP(userID, service.ExamXP)
+		// 认证考试通过 → 颁发能力认证证书（已持有则忽略）
+		if report.ExamType == service.ExamTypeCert {
+			if cert, err := h.certSvc.IssueCertificate(userID, report.CourseID, report.Score); err == nil {
+				report.Certificate = cert
+			} else if err != service.ErrAlreadyCertified {
+				log.Printf("[SubmitExam] issue certificate err=%v", err)
+			}
+		}
 	}
 	c.JSON(http.StatusOK, report)
 }

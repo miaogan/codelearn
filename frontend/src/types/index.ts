@@ -185,6 +185,8 @@ export interface KnowledgePoint {
 
 export interface ExamReport {
   exam_id: number
+  exam_type: string
+  course_id: number
   score: number
   correct_count: number
   total_count: number
@@ -197,6 +199,15 @@ export interface ExamReport {
   by_type: TypeAccuracy[]
   knowledge: KnowledgePoint[]
   results: ExamReportItem[]
+  certificate?: Certificate
+}
+
+export interface CertStatus {
+  eligible: boolean
+  certified: boolean
+  certificate?: Certificate
+  units_total: number
+  units_passed: number
 }
 
 // ===== 排行榜 / 学习日历（Sprint 0 新增） =====

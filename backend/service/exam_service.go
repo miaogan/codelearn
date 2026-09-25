@@ -15,6 +15,7 @@ var (
 	ErrNoQuestions      = errors.New("该单元暂无足够的题目组成试卷")
 	ErrAlreadyPassed    = errors.New("该考试已通过，无需重考")
 	ErrRetryCoolDown    = errors.New("24 小时内不可重考，请稍后再试")
+	ErrCertUnitsNotPassed = errors.New("请先通过该课程的全部单元考试，才能参加认证考试")
 )
 
 const (
@@ -27,6 +28,11 @@ const (
 	ExamXP = 20
 	// ExamRetryCoolDownHours 未通过后的重考冷却时长
 	ExamRetryCoolDownHours = 24
+
+	// CertExamDurationMin 认证考试时长（分钟）
+	CertExamDurationMin = 45
+	// CertExamQuestionCount 认证考试题量
+	CertExamQuestionCount = 10
 )
 
 // ExamQuestionDTO 下发给前端的考题（不含答案）
@@ -88,6 +94,8 @@ type KnowledgePoint struct {
 // ExamReportDTO 考试报告
 type ExamReportDTO struct {
 	ExamID       uint                `json:"exam_id"`
+	ExamType     string              `json:"exam_type"`
+	CourseID     uint                `json:"course_id"`
 	Score        int                 `json:"score"`
 	CorrectCount int                 `json:"correct_count"`
 	TotalCount   int                 `json:"total_count"`
@@ -100,6 +108,16 @@ type ExamReportDTO struct {
 	ByType       []TypeAccuracy      `json:"by_type"`
 	Knowledge    []KnowledgePoint    `json:"knowledge"`
 	Results      []ExamResultItemDTO `json:"results"`
+	Certificate  *model.Certificate  `json:"certificate,omitempty"` // 认证考试通过后颁发
+}
+
+// CertStatusDTO 认证考试资格状态
+type CertStatusDTO struct {
+	Eligible    bool               `json:"eligible"`
+	Certified   bool               `json:"certified"`
+	Certificate *model.Certificate `json:"certificate,omitempty"`
+	UnitsTotal  int                `json:"units_total"`
+	UnitsPassed int                `json:"units_passed"`
 }
 
 type ExamService struct {
@@ -186,6 +204,198 @@ func (s *ExamService) AssembleUnitExam(unitID, userID uint) (*ExamDTO, error) {
 	return dto, nil
 }
 
+// AssembleCertExam 组装课程级认证考试。
+// 触发条件：课程全部单元考试均已通过；组卷覆盖全部单元（每单元至少 1 题）。
+func (s *ExamService) AssembleCertExam(courseID, userID uint) (*ExamDTO, error) {
+	course, err := s.repo.GetCourse(courseID)
+	if err != nil {
+		return nil, err
+	}
+
+	units, err := s.repo.ListUnitsByCourse(courseID)
+	if err != nil {
+		return nil, err
+	}
+	if len(units) == 0 {
+		return nil, ErrNoQuestions
+	}
+
+	// 前置校验：全部单元考试通过
+	pools := make([][]model.Exercise, 0, len(units))
+	for _, u := range units {
+		if !s.unitExamPassed(userID, u.ID) {
+			return nil, ErrCertUnitsNotPassed
+		}
+		exs, err := s.repo.ListExercisesByUnit(u.ID)
+		if err != nil {
+			continue
+		}
+		if len(exs) > 0 {
+			pools = append(pools, exs)
+		}
+	}
+	if len(pools) == 0 {
+		return nil, ErrNoQuestions
+	}
+
+	selected := pickCertQuestions(pools, CertExamQuestionCount)
+
+	exam := &model.Exam{
+		CourseID:      courseID,
+		UnitID:        0,
+		Title:         course.Title + " 认证考试",
+		ExamType:      ExamTypeCert,
+		DurationMin:   CertExamDurationMin,
+		QuestionCount: len(selected),
+		PassScore:     ExamPassScore,
+	}
+	if err := s.repo.CreateExam(exam); err != nil {
+		return nil, err
+	}
+
+	qs := make([]model.ExamQuestion, 0, len(selected))
+	for i, ex := range selected {
+		qs = append(qs, model.ExamQuestion{ExamID: exam.ID, ExerciseID: ex.ID, Order: i + 1})
+	}
+	if err := s.repo.CreateExamQuestions(qs); err != nil {
+		return nil, err
+	}
+
+	dto := &ExamDTO{
+		ID:          exam.ID,
+		Title:       exam.Title,
+		ExamType:    exam.ExamType,
+		DurationMin: exam.DurationMin,
+		PassScore:   exam.PassScore,
+		Questions:   make([]ExamQuestionDTO, 0, len(selected)),
+	}
+	for i, ex := range selected {
+		dto.Questions = append(dto.Questions, ExamQuestionDTO{
+			ID:           qs[i].ID,
+			ExerciseID:   ex.ID,
+			Order:        qs[i].Order,
+			Type:         ex.Type,
+			Question:     ex.Question,
+			Options:      ex.Options,
+			CodeTemplate: ex.CodeTemplate,
+			Difficulty:   ex.Difficulty,
+		})
+	}
+	return dto, nil
+}
+
+// CertStatus 查询课程认证状态：是否具备考试资格、是否已持证
+func (s *ExamService) CertStatus(courseID, userID uint) (*CertStatusDTO, error) {
+	units, err := s.repo.ListUnitsByCourse(courseID)
+	if err != nil {
+		return nil, err
+	}
+	passed := 0
+	for _, u := range units {
+		if s.unitExamPassed(userID, u.ID) {
+			passed++
+		}
+	}
+	cert, certErr := s.repo.GetCertificate(userID, courseID)
+	return &CertStatusDTO{
+		Eligible:    len(units) > 0 && passed == len(units),
+		Certified:   certErr == nil,
+		Certificate: cert,
+		UnitsTotal:  len(units),
+		UnitsPassed: passed,
+	}, nil
+}
+
+// unitExamPassed 判断用户是否已通过某单元考试（任一考试实例存在通过记录）
+func (s *ExamService) unitExamPassed(userID, unitID uint) bool {
+	exams, err := s.repo.ListExamsByUnit(unitID)
+	if err != nil {
+		return false
+	}
+	for _, e := range exams {
+		sub, err := s.repo.GetLatestExamSubmission(userID, e.ID)
+		if err == nil && sub.Passed {
+			return true
+		}
+	}
+	return false
+}
+
+// pickCertQuestions 认证考试组卷：先保证每个单元至少 1 题（优先客观题），
+// 再按 30% 代码题上限从全部剩余习题中补齐。
+func pickCertQuestions(unitPools [][]model.Exercise, total int) []model.Exercise {
+	if total <= 0 {
+		total = CertExamQuestionCount
+	}
+	selected := make([]model.Exercise, 0, total)
+	used := make(map[uint]bool)
+
+	// 第一轮：每个单元至少 1 题（优先客观题，保证覆盖全部单元）
+	for _, pool := range unitPools {
+		if len(selected) >= total {
+			break
+		}
+		shuffled := make([]model.Exercise, len(pool))
+		copy(shuffled, pool)
+		rand.Shuffle(len(shuffled), func(i, j int) { shuffled[i], shuffled[j] = shuffled[j], shuffled[i] })
+		var pick *model.Exercise
+		for i := range shuffled {
+			if shuffled[i].Type != "code" {
+				pick = &shuffled[i]
+				break
+			}
+		}
+		if pick == nil {
+			pick = &shuffled[0]
+		}
+		if !used[pick.ID] {
+			selected = append(selected, *pick)
+			used[pick.ID] = true
+		}
+	}
+
+	// 第二轮：剩余名额按代码题 ≤30% 补齐
+	var objective, code []model.Exercise
+	for _, pool := range unitPools {
+		for _, ex := range pool {
+			if used[ex.ID] {
+				continue
+			}
+			if ex.Type == "code" {
+				code = append(code, ex)
+			} else {
+				objective = append(objective, ex)
+			}
+		}
+	}
+	rand.Shuffle(len(objective), func(i, j int) { objective[i], objective[j] = objective[j], objective[i] })
+	rand.Shuffle(len(code), func(i, j int) { code[i], code[j] = code[j], code[i] })
+
+	need := total - len(selected)
+	codeUsed := 0
+	for _, ex := range selected {
+		if ex.Type == "code" {
+			codeUsed++
+		}
+	}
+	codeCap := total*30/100 - codeUsed
+	if codeCap < 0 {
+		codeCap = 0
+	}
+	codeCount := codeCap
+	if codeCount > len(code) {
+		codeCount = len(code)
+	}
+	objNeed := need - codeCount
+	if objNeed > len(objective) {
+		objNeed = len(objective)
+	}
+	selected = append(selected, objective[:objNeed]...)
+	selected = append(selected, code[:codeCount]...)
+	rand.Shuffle(len(selected), func(i, j int) { selected[i], selected[j] = selected[j], selected[i] })
+	return selected
+}
+
 // SubmitExam 提交考试并判分，生成考试报告，错题自动进入错题本。
 // 重考规则：已通过不可重考；未通过需等待 ExamRetryCoolDownHours 冷却。
 func (s *ExamService) SubmitExam(userID, examID uint, answers []ExamAnswerItem, durationSec, tabSwitches int) (*ExamReportDTO, error) {
@@ -232,6 +442,8 @@ func (s *ExamService) SubmitExam(userID, examID uint, answers []ExamAnswerItem, 
 
 	report := &ExamReportDTO{
 		ExamID:      exam.ID,
+		ExamType:    exam.ExamType,
+		CourseID:    exam.CourseID,
 		TotalCount:  len(qs),
 		PassScore:   exam.PassScore,
 		DurationSec: durationSec,
@@ -410,6 +622,8 @@ func (s *ExamService) GetReport(userID, examID uint) (*ExamReportDTO, error) {
 	attempts, best := s.examSummary(userID, examID)
 	return &ExamReportDTO{
 		ExamID:       exam.ID,
+		ExamType:     exam.ExamType,
+		CourseID:     exam.CourseID,
 		Score:        sub.Score,
 		CorrectCount: sub.CorrectCount,
 		TotalCount:   sub.TotalCount,

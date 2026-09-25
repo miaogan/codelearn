@@ -60,6 +60,8 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 			authed.POST("/units/:id/exam", exam.StartUnitExam)
 			authed.POST("/exams/:id/submit", exam.SubmitExam)
 			authed.GET("/exams/:id/report", exam.GetReport)
+			authed.POST("/courses/:id/cert-exam", exam.StartCertExam)
+			authed.GET("/courses/:id/cert-status", exam.CertStatus)
 
 			// 排行榜
 			authed.GET("/leaderboard", leaderboard.Weekly)
