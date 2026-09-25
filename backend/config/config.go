@@ -7,6 +7,7 @@ import (
 type Config struct {
 	Port          string
 	DBPath        string
+	FrontendDir   string
 	JWTSecret     string
 	LLMAPIKey     string
 	LLMBaseURL    string
@@ -21,6 +22,7 @@ func Load() *Config {
 	return &Config{
 		Port:          getEnv("PORT", "8080"),
 		DBPath:        getEnv("DB_PATH", "codelearn.db"),
+		FrontendDir:   getEnv("FRONTEND_DIR", "../frontend/dist"),
 		JWTSecret:     getEnv("JWT_SECRET", "codelearn-dev-secret-change-me"),
 		LLMAPIKey:     getEnv("LLM_API_KEY", ""),
 		LLMBaseURL:    getEnv("LLM_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),

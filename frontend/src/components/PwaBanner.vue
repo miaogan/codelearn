@@ -4,8 +4,11 @@ import { ref, onMounted } from 'vue'
 const deferredPrompt = ref<any>(null)
 const showInstall = ref(false)
 const notifyOn = ref(false)
+// 桌面版（Wails WebView）无需 PWA 安装/通知横幅
+const isDesktop = 'wails' in window
 
 onMounted(async () => {
+  if (isDesktop) return
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault()
     deferredPrompt.value = e
@@ -68,7 +71,7 @@ async function tryDailyReminder() {
 </script>
 
 <template>
-  <div v-if="showInstall" class="pwa-banner">
+  <div v-if="!isDesktop && showInstall" class="pwa-banner">
     <span class="pwa-icon">📚</span>
     <div class="pwa-body">
       <div class="pwa-title">安装 CodeLearn</div>
@@ -77,7 +80,7 @@ async function tryDailyReminder() {
     <button class="pwa-btn" @click="install">安装</button>
   </div>
 
-  <div v-if="!notifyOn" class="pwa-banner reminder">
+  <div v-if="!isDesktop && !notifyOn" class="pwa-banner reminder">
     <span class="pwa-icon">🔔</span>
     <div class="pwa-body">
       <div class="pwa-title">开启学习提醒</div>

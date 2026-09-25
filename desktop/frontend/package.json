@@ -1,0 +1,10 @@
+{
+  "name": "codelearn-desktop-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CodeLearn 桌面版前端代理目录：所有构建命令均转发到 ../frontend（与 Web 版共用同一份前端源码）",
+  "scripts": {
+    "build": "npm --prefix ../../frontend run build",
+    "dev": "npm --prefix ../../frontend run dev"
+  }
+}

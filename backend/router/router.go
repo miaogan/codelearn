@@ -125,10 +125,10 @@ func Setup(cfg *config.Config, auth *handler.AuthHandler, course *handler.Course
 		}
 	}
 
-	r.Static("/static", "../frontend/dist")
-	r.Static("/assets", "../frontend/dist/assets")
+	r.Static("/static", cfg.FrontendDir)
+	r.Static("/assets", cfg.FrontendDir+"/assets")
 	r.NoRoute(func(c *gin.Context) {
-		c.File("../frontend/dist/index.html")
+		c.File(cfg.FrontendDir + "/index.html")
 	})
 
 	return r
